@@ -1,0 +1,1 @@
+/usr/lib64/ccache/c++ CMakeFiles/nes.dir/src/main.cpp.o CMakeFiles/nes.dir/src/cpu.cpp.o -o nes
