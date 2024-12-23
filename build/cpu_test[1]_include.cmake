@@ -1,5 +1,0 @@
-if(EXISTS "/home/richard/Documents/Projects/gameboy/build/cpu_test[1]_tests.cmake")
-  include("/home/richard/Documents/Projects/gameboy/build/cpu_test[1]_tests.cmake")
-else()
-  add_test(cpu_test_NOT_BUILT cpu_test_NOT_BUILT)
-endif()

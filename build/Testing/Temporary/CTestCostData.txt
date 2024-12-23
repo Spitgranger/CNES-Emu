@@ -1,6 +1,0 @@
-CPUTest.TestLDA 5 0.000504846
-CPUTest.TestLDAZeroFlag 3 0.000805094
-CPUTest.TestTAX 3 0.000843167
-CPUTest.TestSimpleProgramFiveOps 3 0.000795721
-CPUTest.TestINXOverflow 3 0.000799381
----
