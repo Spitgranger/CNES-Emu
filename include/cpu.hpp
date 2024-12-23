@@ -21,12 +21,23 @@ public:
     V = (1 << 6),
     N = (1 << 7)
   };
-
+  // CPU Instructions
   uint8_t LDA(uint8_t param);
   uint8_t BRK();
   uint8_t TAX();
   uint8_t INX();
 
+  // Memory Access
+  uint8_t readFromMemory(uint16_t address);
+  void writeToMemory(uint16_t address, uint8_t data);
+  uint16_t readShortFromMemory(uint16_t address);
+  void writeShortToMemory(uint16_t address, uint16_t data);
+  void loadProgram(uint8_t program[], uint32_t size);
+  void loadProgramAndRun(uint8_t program[], uint32_t size);
+
   // This method is for testing, receives programs as a seperate input stream
-  void interpret(const uint8_t program[]);
+  void interpret();
+
+  // CPU Functional Methods
+  void reset();
 };
