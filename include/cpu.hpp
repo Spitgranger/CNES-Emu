@@ -45,6 +45,7 @@ public:
   uint8_t INX();
   uint8_t STA(ADDRESSING mode);
   uint8_t ADC(ADDRESSING mode);
+  uint8_t AND(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);

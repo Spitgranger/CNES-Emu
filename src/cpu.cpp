@@ -16,6 +16,15 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x61, "ADC", 2, 6, ADDRESSING::Indirect_X},
     {0x71, "ADC", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
 
+    {0x29, "AND", 2, 2, ADDRESSING::Immediate},
+    {0x25, "AND", 2, 3, ADDRESSING::ZeroPage},
+    {0x35, "AND", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x2D, "AND", 3, 4, ADDRESSING::Absolute},
+    {0x3D, "AND", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+    {0x39, "AND", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
+    {0x21, "AND", 2, 6, ADDRESSING::Indirect_X},
+    {0x31, "AND", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
     {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
     {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
     {0xB5, "LDA", 2, 4, ADDRESSING::ZeroPage_X},
@@ -124,6 +133,14 @@ uint8_t CPU::ADC(ADDRESSING mode) {
   return 0;
 }
 
+uint8_t CPU::AND(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t operand = readFromMemory(address);
+  this->A &= operand;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -203,6 +220,16 @@ void CPU::interpret() {
     case 0x61:
     case 0x71:
       ADC(lookupTable[opcode].mode);
+      break;
+    case 0x29:
+    case 0x25:
+    case 0x35:
+    case 0x2D:
+    case 0x3D:
+    case 0x39:
+    case 0x21:
+    case 0x31:
+      AND(lookupTable[opcode].mode);
       break;
     }
     if (this->PC == prevProgCounter) {
