@@ -44,6 +44,7 @@ public:
   uint8_t TAX();
   uint8_t INX();
   uint8_t STA(ADDRESSING mode);
+  uint8_t ADC(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
@@ -75,4 +76,5 @@ private:
   };
   static std::vector<instruction> opcodeTable;
   std::unordered_map<uint16_t, instruction> lookupTable;
+  void setZeroAndNegativeFlags(uint8_t value);
 };

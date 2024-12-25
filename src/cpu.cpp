@@ -3,26 +3,35 @@
 #include <iostream>
 
 std::vector<CPU::instruction> CPU::opcodeTable = {
-  {0x00, "BRK", 1, 7, ADDRESSING::NoneAddressing},
-  {0xAA, "TAX", 1, 2, ADDRESSING::NoneAddressing},
-  {0xE8, "INX", 1, 2, ADDRESSING::NoneAddressing},
+    {0x00, "BRK", 1, 7, ADDRESSING::NoneAddressing},
+    {0xAA, "TAX", 1, 2, ADDRESSING::NoneAddressing},
+    {0xE8, "INX", 1, 2, ADDRESSING::NoneAddressing},
 
-  {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
-  {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
-  {0xB5, "LDA", 2, 4, ADDRESSING::ZeroPage_X},
-  {0xAD, "LDA", 3, 4, ADDRESSING::Absolute},
-  {0xBD, "LDA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
-  {0xB9, "LDA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
-  {0xA1, "LDA", 2, 6, ADDRESSING::Indirect_X},
-  {0xB1, "LDA", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+    {0x69, "ADC", 2, 2, ADDRESSING::Immediate},
+    {0x65, "ADC", 2, 3, ADDRESSING::ZeroPage},
+    {0x75, "ADC", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x6D, "ADC", 3, 4, ADDRESSING::Absolute},
+    {0x7D, "ADC", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+    {0x79, "ADC", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
+    {0x61, "ADC", 2, 6, ADDRESSING::Indirect_X},
+    {0x71, "ADC", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
 
-  {0x85, "STA", 2, 3, ADDRESSING::ZeroPage},
-  {0x95, "STA", 2, 4, ADDRESSING::ZeroPage_X},
-  {0x8D, "STA", 3, 4, ADDRESSING::Absolute},
-  {0x9D, "STA", 2, 5, ADDRESSING::Absolute_X},
-  {0x99, "STA", 2, 5, ADDRESSING::Absolute_Y},
-  {0x81, "STA", 2, 6, ADDRESSING::Indirect_X},
-  {0x91, "STA", 2, 6, ADDRESSING::Indirect_Y},
+    {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
+    {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
+    {0xB5, "LDA", 2, 4, ADDRESSING::ZeroPage_X},
+    {0xAD, "LDA", 3, 4, ADDRESSING::Absolute},
+    {0xBD, "LDA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+    {0xB9, "LDA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
+    {0xA1, "LDA", 2, 6, ADDRESSING::Indirect_X},
+    {0xB1, "LDA", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
+    {0x85, "STA", 2, 3, ADDRESSING::ZeroPage},
+    {0x95, "STA", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x8D, "STA", 3, 4, ADDRESSING::Absolute},
+    {0x9D, "STA", 2, 5, ADDRESSING::Absolute_X},
+    {0x99, "STA", 2, 5, ADDRESSING::Absolute_Y},
+    {0x81, "STA", 2, 6, ADDRESSING::Indirect_X},
+    {0x91, "STA", 2, 6, ADDRESSING::Indirect_Y},
 };
 
 CPU::CPU() {
@@ -34,7 +43,7 @@ CPU::CPU() {
   CPU::SP = 0x0000;
 
   // Best way I can think of to accomplish this for now
-  for (instruction ins: CPU::opcodeTable) {
+  for (instruction ins : CPU::opcodeTable) {
     lookupTable[ins.opcode] = ins;
   }
 }
@@ -43,16 +52,24 @@ CPU::~CPU() {
   // Destructor, TODO
 }
 
+void CPU::setZeroAndNegativeFlags(uint8_t value) {
+  if (value == 0) {
+    S |= FLAGS::Z;
+  } else {
+    S &= ~(FLAGS::Z);
+  }
+  if (value & (1 << 7)) {
+    S |= FLAGS::N;
+  } else {
+    S &= ~(FLAGS::N);
+  }
+}
+
 uint8_t CPU::LDA(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint8_t value = readFromMemory(address);
   this->A = value;
-  if (this->A == 0) {
-    S |= FLAGS::Z;
-  }
-  if (this->A & (1 << 7)) {
-    S |= FLAGS::N;
-  }
+  setZeroAndNegativeFlags(this->A);
   return 0;
 }
 
@@ -63,29 +80,47 @@ uint8_t CPU::BRK() {
 
 uint8_t CPU::TAX() {
   this->X = this->A;
-  if (this->X == 0) {
-    S |= FLAGS::Z;
-  }
-  if (this->X & (1 << 7)) {
-    S |= FLAGS::N;
-  }
+  setZeroAndNegativeFlags(this->X);
   return 0;
 }
 
 uint8_t CPU::INX() {
   this->X++;
-  if (this->X == 0) {
-    S |= FLAGS::Z;
-  }
-  if (this->X & (1 << 7)) {
-    S |= FLAGS::N;
-  }
+  setZeroAndNegativeFlags(this->X);
   return 0;
 }
 
 uint8_t CPU::STA(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   writeToMemory(address, this->A);
+  return 0;
+}
+
+uint8_t CPU::ADC(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(address);
+  uint16_t sum = this->A + data + (this->S & FLAGS::C);
+
+  if (sum > 0xFF) {
+    this->S |= FLAGS::C;
+  } else {
+    this->S &= ~(FLAGS::C);
+  }
+
+  uint8_t result = static_cast<uint8_t>(sum);
+
+  // Check if overflow occurs as a result of signed addition.
+  // if the accumulator and data have different signs, not possible for
+  // overflow, but if they have the same signs and the result and accumulator
+  // has a different sign, we know that overflow has occurred.
+  if (~(this->A ^ data) & (this->A ^ result) & (1 << 7)) {
+    this->S |= FLAGS::V;
+  } else {
+    this->S &= ~(FLAGS::V);
+  }
+
+  this->A = result;
+  setZeroAndNegativeFlags(this->A);
   return 0;
 }
 
@@ -157,6 +192,17 @@ void CPU::interpret() {
     case 0x81:
     case 0x91:
       STA(lookupTable[opcode].mode);
+      break;
+    // ADC
+    case 0x69:
+    case 0x65:
+    case 0x75:
+    case 0x6D:
+    case 0x7D:
+    case 0x79:
+    case 0x61:
+    case 0x71:
+      ADC(lookupTable[opcode].mode);
       break;
     }
     if (this->PC == prevProgCounter) {
