@@ -13,6 +13,14 @@ TEST(CPUTest, TestLDA) {
 	EXPECT_EQ(cpu.S & 0b10000000, 0b00);
 }
 
+TEST(CPUTest, TestLDAFromMemory) {
+	CPU cpu = CPU();
+	cpu.writeToMemory(0x10, 0x55);
+	uint8_t program[3] = {0xA5, 0x10, 0x00};
+	cpu.loadProgramAndRun(program, 3);
+	EXPECT_EQ(cpu.A, 0x55);
+}
+
 TEST(CPUTest, TestLDAZeroFlag) {
 	CPU cpu = CPU();
 	uint8_t program[3] = {0xA9, 0x00, 0x00};

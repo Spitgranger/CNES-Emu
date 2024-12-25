@@ -1,5 +1,8 @@
 #pragma once
 #include <cstdint>
+#include <vector>
+#include <string>
+#include <unordered_map>
 
 class CPU {
 public:
@@ -21,11 +24,26 @@ public:
     V = (1 << 6),
     N = (1 << 7)
   };
+
+  enum ADDRESSING {
+    Immediate,
+    ZeroPage,
+    ZeroPage_X,
+    ZeroPage_Y,
+    Absolute,
+    Absolute_X,
+    Absolute_Y,
+    Indirect_X,
+    Indirect_Y,
+    NoneAddressing
+  };
+
   // CPU Instructions
-  uint8_t LDA(uint8_t param);
+  uint8_t LDA(ADDRESSING mode);
   uint8_t BRK();
   uint8_t TAX();
   uint8_t INX();
+  uint8_t STA(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
@@ -34,10 +52,27 @@ public:
   void writeShortToMemory(uint16_t address, uint16_t data);
   void loadProgram(uint8_t program[], uint32_t size);
   void loadProgramAndRun(uint8_t program[], uint32_t size);
+  uint16_t getOperandAddress(ADDRESSING mode);
 
   // This method is for testing, receives programs as a seperate input stream
   void interpret();
 
   // CPU Functional Methods
   void reset();
+
+private:
+  struct instruction {
+    // Opcode of the instruction
+    uint8_t opcode;
+    // mnemonic of english name of instruction
+    std::string name;
+    // Number of bytes for the instruction including arguments
+    uint8_t bytes;
+    // NUmber of CPU cycles needed
+    uint8_t cycles;
+    // Addressing mode
+    ADDRESSING mode;
+  };
+  static std::vector<instruction> opcodeTable;
+  std::unordered_map<uint16_t, instruction> lookupTable;
 };
