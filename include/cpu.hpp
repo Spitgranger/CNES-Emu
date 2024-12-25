@@ -48,6 +48,7 @@ public:
   uint8_t AND(ADDRESSING mode);
   uint8_t ASL(ADDRESSING mode);
   uint8_t ASLAccumulator();
+  void branch(bool condition);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);

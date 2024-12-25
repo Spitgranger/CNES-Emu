@@ -6,6 +6,9 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x00, "BRK", 1, 7, ADDRESSING::NoneAddressing},
     {0xAA, "TAX", 1, 2, ADDRESSING::NoneAddressing},
     {0xE8, "INX", 1, 2, ADDRESSING::NoneAddressing},
+    {0x90, "BCC", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
+    {0xB0, "BCS", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
+    {0xF0, "BEQ", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
 
     {0x69, "ADC", 2, 2, ADDRESSING::Immediate},
     {0x65, "ADC", 2, 3, ADDRESSING::ZeroPage},
@@ -172,6 +175,14 @@ uint8_t CPU::ASLAccumulator() {
   return 0;
 }
 
+void CPU::branch(bool condition) {
+  if (condition) {
+    int8_t offset = readFromMemory(this->PC);
+    uint16_t newAddress = this->PC + 1 + offset;
+    this->PC = newAddress;
+  }
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -252,6 +263,7 @@ void CPU::interpret() {
     case 0x71:
       ADC(lookupTable[opcode].mode);
       break;
+    // AND
     case 0x29:
     case 0x25:
     case 0x35:
@@ -262,6 +274,7 @@ void CPU::interpret() {
     case 0x31:
       AND(lookupTable[opcode].mode);
       break;
+    // ASL
     case 0x0A:
       ASLAccumulator();
       break;
@@ -271,6 +284,14 @@ void CPU::interpret() {
     case 0x1E:
       ASL(lookupTable[opcode].mode);
       break;
+    // BCC
+    case 0x90:
+      branch(~(this->S & FLAGS::C));
+    // BCS
+    case 0xB0:
+      branch((this->S & FLAGS::C));
+    case 0xF0:
+      branch((this->S & FLAGS::Z));
     }
     if (this->PC == prevProgCounter) {
       this->PC += (lookupTable[opcode].bytes - 1);
