@@ -10,6 +10,10 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xB0, "BCS", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
     {0xF0, "BEQ", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
 
+    {0x24, "BIT", 2, 3, ADDRESSING::ZeroPage},
+    {0x2C, "BIT", 3, 4, ADDRESSING::Absolute},
+
+
     {0x69, "ADC", 2, 2, ADDRESSING::Immediate},
     {0x65, "ADC", 2, 3, ADDRESSING::ZeroPage},
     {0x75, "ADC", 2, 4, ADDRESSING::ZeroPage_X},
@@ -183,6 +187,31 @@ void CPU::branch(bool condition) {
   }
 }
 
+uint8_t CPU::BIT(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t operand = readFromMemory(address);
+  uint8_t result = this->A & operand;
+  if (result == 0) {
+    this->S |= FLAGS::Z;
+  } else {
+    this->S &= ~(FLAGS::Z);
+  }
+
+  if (operand >> 7) {
+    this->S |= FLAGS::N;
+  } else {
+    this->S &= ~(FLAGS::N);
+  }
+
+  if (operand >> 6) {
+    this->S |= FLAGS::V;
+  } else {
+    this->S &= ~(FLAGS::V);
+  }
+
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -290,8 +319,14 @@ void CPU::interpret() {
     // BCS
     case 0xB0:
       branch((this->S & FLAGS::C));
+    // BEQ
     case 0xF0:
       branch((this->S & FLAGS::Z));
+    // BIT
+    case 0x24:
+    case 0x2C:
+      BIT(lookupTable[opcode].mode);
+      break;
     }
     if (this->PC == prevProgCounter) {
       this->PC += (lookupTable[opcode].bytes - 1);
