@@ -6,13 +6,29 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x00, "BRK", 1, 7, ADDRESSING::NoneAddressing},
     {0xAA, "TAX", 1, 2, ADDRESSING::NoneAddressing},
     {0xE8, "INX", 1, 2, ADDRESSING::NoneAddressing},
-    {0x90, "BCC", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
-    {0xB0, "BCS", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
-    {0xF0, "BEQ", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/, ADDRESSING::NoneAddressing},
+    {0x90, "BCC", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0xB0, "BCS", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0xF0, "BEQ", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0x30, "BMI", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0xD0, "BNE", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0x10, "BPL", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0x50, "BVC", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0x70, "BVS", 2, 2 /*+1 if branch succeeds, +2 if to a new page*/,
+     ADDRESSING::NoneAddressing},
+    {0x18, "CLC", 1, 2, ADDRESSING::NoneAddressing},
+    {0xD8, "CLD", 1, 2, ADDRESSING::NoneAddressing},
+    {0x58, "CLI", 1, 2, ADDRESSING::NoneAddressing},
+    {0xB8, "CLV", 1, 2, ADDRESSING::NoneAddressing},
 
     {0x24, "BIT", 2, 3, ADDRESSING::ZeroPage},
     {0x2C, "BIT", 3, 4, ADDRESSING::Absolute},
-
 
     {0x69, "ADC", 2, 2, ADDRESSING::Immediate},
     {0x65, "ADC", 2, 3, ADDRESSING::ZeroPage},
@@ -31,6 +47,23 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x39, "AND", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
     {0x21, "AND", 2, 6, ADDRESSING::Indirect_X},
     {0x31, "AND", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
+    {0xC9, "CMP", 2, 2, ADDRESSING::Immediate},
+    {0xC5, "CMP", 2, 3, ADDRESSING::ZeroPage},
+    {0xD5, "CMP", 2, 4, ADDRESSING::ZeroPage_X},
+    {0xCD, "CMP", 3, 4, ADDRESSING::Absolute},
+    {0xDD, "CMP", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+    {0xD9, "CMP", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
+    {0xC1, "CMP", 2, 6, ADDRESSING::Indirect_X},
+    {0xD1, "CMP", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
+    {0xE0, "CPX", 2, 2, ADDRESSING::Immediate},
+    {0xE4, "CPX", 2, 3, ADDRESSING::ZeroPage},
+    {0xEC, "CPX", 3, 4, ADDRESSING::Absolute},
+
+    {0xC0, "CPY", 2, 2, ADDRESSING::Immediate},
+    {0xC4, "CPY", 2, 3, ADDRESSING::ZeroPage},
+    {0xCC, "CPY", 3, 4, ADDRESSING::Absolute},
 
     {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
     {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
@@ -212,6 +245,17 @@ uint8_t CPU::BIT(ADDRESSING mode) {
   return 0;
 }
 
+void CPU::compare(ADDRESSING mode, uint8_t reg) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(address);
+  if (this->A >= data) {
+    this->S |= FLAGS::C;
+  } else {
+    this->S &= ~(FLAGS::C);
+  }
+  setZeroAndNegativeFlags(static_cast<uint8_t>(this->A - data));
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -326,6 +370,65 @@ void CPU::interpret() {
     case 0x24:
     case 0x2C:
       BIT(lookupTable[opcode].mode);
+      break;
+    // BMI
+    case 0x30:
+      branch((this->S & FLAGS::N));
+      break;
+    // BNE
+    case 0xD0:
+      branch(~(this->S & FLAGS::Z));
+      break;
+    // BPL
+    case 0x10:
+      branch(~(this->S & FLAGS::N));
+      break;
+    // BVC
+    case 0x50:
+      branch(~(this->S & FLAGS::V));
+      break;
+    // BVS
+    case 0x70:
+      branch((this->S & FLAGS::V));
+      break;
+    // CLC
+    case 0x18:
+      this->S &= (~FLAGS::C);
+      break;
+    // CLD
+    case 0xD8:
+      this->S &= (~FLAGS::D);
+      break;
+    // CLI
+    case 0x58:
+      this->S &= (~FLAGS::I);
+      break;
+    // CLV
+    case 0xB8:
+      this->S &= (~FLAGS::V);
+      break;
+    // CMP
+    case 0xC9:
+    case 0xC5:
+    case 0xD5:
+    case 0xCD:
+    case 0xDD:
+    case 0xD9:
+    case 0xC1:
+    case 0xD1:
+      compare(lookupTable[opcode].mode, this->A);
+      break;
+    // CPX
+    case 0xE0:
+    case 0xE4:
+    case 0xEC:
+      compare(lookupTable[opcode].mode, this->X);
+      break;
+    // CPY
+    case 0xC0:
+    case 0xC4:
+    case 0xCC:
+      compare(lookupTable[opcode].mode, this->Y);
       break;
     }
     if (this->PC == prevProgCounter) {
