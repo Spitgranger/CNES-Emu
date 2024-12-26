@@ -73,6 +73,22 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xCA, "DEX", 1, 2, ADDRESSING::NoneAddressing},
     {0x88, "DEY", 1, 2, ADDRESSING::NoneAddressing},
 
+    {0x49, "EOR", 2, 2, ADDRESSING::Immediate},
+    {0x45, "EOR", 2, 3, ADDRESSING::ZeroPage},
+    {0x55, "EOR", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x4D, "EOR", 3, 4, ADDRESSING::Absolute},
+    {0x5D, "EOR", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+    {0x59, "EOR", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
+    {0x41, "EOR", 2, 6, ADDRESSING::Indirect_X},
+    {0x51, "EOR", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
+    {0xE6, "INC", 2, 5, ADDRESSING::ZeroPage},
+    {0xF6, "INC", 2, 6, ADDRESSING::ZeroPage_X},
+    {0xEE, "INC", 3, 6, ADDRESSING::Absolute},
+    {0xFE, "INC", 3, 7, ADDRESSING::Absolute_X},
+
+    {0xC8, "INY", 1, 2, ADDRESSING::NoneAddressing},
+
     {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
     {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
     {0xB5, "LDA", 2, 4, ADDRESSING::ZeroPage_X},
@@ -290,6 +306,28 @@ void CPU::DECY() {
   this->Y = data;
 }
 
+uint8_t CPU::EOR(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(data);
+  this->A ^= data;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
+uint8_t CPU::INC(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(data);
+  data += 1;
+  setZeroAndNegativeFlags(data);
+  writeToMemory(address, data);
+  return 0;
+}
+
+void CPU::INCY() {
+  this->Y++;
+  setZeroAndNegativeFlags(this->Y);
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -478,6 +516,28 @@ void CPU::interpret() {
     // DEY
     case 0x88:
       DECY();
+      break;
+    // EOR
+    case 0x49:
+    case 0x45:
+    case 0x55:
+    case 0x4D:
+    case 0x5D:
+    case 0x59:
+    case 0x41:
+    case 0x51:
+      EOR(lookupTable[opcode].mode);
+      break;
+    // INC
+    case 0xE6:
+    case 0xF6:
+    case 0xEE:
+    case 0xFE:
+      INC(lookupTable[opcode].mode);
+      break;
+    // INY
+    case 0xC8:
+      INCY();
       break;
     }
     if (this->PC == prevProgCounter) {

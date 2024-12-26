@@ -54,6 +54,10 @@ public:
   uint8_t DEC(ADDRESSING mode);
   void DECX();
   void DECY();
+  uint8_t EOR(ADDRESSING mode);
+  uint8_t INC(ADDRESSING mode);
+  void INCX();
+  void INCY();
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
