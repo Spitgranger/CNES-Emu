@@ -65,6 +65,14 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xC4, "CPY", 2, 3, ADDRESSING::ZeroPage},
     {0xCC, "CPY", 3, 4, ADDRESSING::Absolute},
 
+    {0xC6, "DEC", 2, 5, ADDRESSING::ZeroPage},
+    {0xD6, "DEC", 2, 6, ADDRESSING::ZeroPage_X},
+    {0xCE, "DEC", 3, 6, ADDRESSING::Absolute},
+    {0xDE, "DEC", 3, 7, ADDRESSING::Absolute_X},
+
+    {0xCA, "DEX", 1, 2, ADDRESSING::NoneAddressing},
+    {0x88, "DEY", 1, 2, ADDRESSING::NoneAddressing},
+
     {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
     {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
     {0xB5, "LDA", 2, 4, ADDRESSING::ZeroPage_X},
@@ -256,6 +264,32 @@ void CPU::compare(ADDRESSING mode, uint8_t reg) {
   setZeroAndNegativeFlags(static_cast<uint8_t>(this->A - data));
 }
 
+uint8_t CPU::DEC(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(address);
+
+  data -= 1;
+  setZeroAndNegativeFlags(data);
+  writeToMemory(address, data);
+  return 0;
+}
+
+void CPU::DECX() {
+  uint8_t data = this->X;
+
+  data -= 1;
+  setZeroAndNegativeFlags(data);
+  this->X = data;
+}
+
+void CPU::DECY() {
+  uint8_t data = this->Y;
+
+  data -= 1;
+  setZeroAndNegativeFlags(data);
+  this->Y = data;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -429,6 +463,21 @@ void CPU::interpret() {
     case 0xC4:
     case 0xCC:
       compare(lookupTable[opcode].mode, this->Y);
+      break;
+    // DEC
+    case 0xC6:
+    case 0xD6:
+    case 0xCE:
+    case 0xDE:
+      compare(lookupTable[opcode].mode, this->Y);
+      break;
+    // DEX
+    case 0xCA:
+      DECX();
+      break;
+    // DEY
+    case 0x88:
+      DECY();
       break;
     }
     if (this->PC == prevProgCounter) {

@@ -51,6 +51,9 @@ public:
   void branch(bool condition);
   void compare(ADDRESSING mode, uint8_t reg);
   uint8_t BIT(ADDRESSING mode);
+  uint8_t DEC(ADDRESSING mode);
+  void DECX();
+  void DECY();
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
