@@ -2,6 +2,8 @@
 #include <cstring>
 #include <iostream>
 
+#define TOP_OF_STACK 0x100
+
 std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x00, "BRK", 1, 7, ADDRESSING::NoneAddressing},
     {0xAA, "TAX", 1, 2, ADDRESSING::NoneAddressing},
@@ -89,6 +91,9 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
 
     {0xC8, "INY", 1, 2, ADDRESSING::NoneAddressing},
 
+    {0x4C, "JMP", 3, 3, ADDRESSING::Absolute},
+    {0x6C, "JMP", 3, 5, ADDRESSING::Indirect},
+
     {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
     {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
     {0xB5, "LDA", 2, 4, ADDRESSING::ZeroPage_X},
@@ -119,7 +124,7 @@ CPU::CPU() {
   CPU::Y = 0x00;
   CPU::S = (0x00 | FLAGS::I);
   CPU::PC = 0x0000;
-  CPU::SP = 0x0000;
+  CPU::SP = TOP_OF_STACK;
 
   // Best way I can think of to accomplish this for now
   for (instruction ins : CPU::opcodeTable) {
@@ -328,6 +333,12 @@ void CPU::INCY() {
   setZeroAndNegativeFlags(this->Y);
 }
 
+uint8_t CPU::JMP(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  this->PC = address;
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -356,6 +367,17 @@ void CPU::loadProgram(uint8_t program[], uint32_t size) {
 void CPU::loadProgramAndRun(uint8_t program[], uint32_t size) {
   loadProgram(program, size);
   interpret();
+}
+
+void CPU::pushOnStack(uint8_t value) {
+  writeToMemory(this->SP + 1, value);
+  this->SP += 1;
+}
+
+uint8_t CPU::popFromStack() {
+  uint8_t value = readFromMemory(this->SP);
+  this->SP--;
+  return value;
 }
 
 void CPU::interpret() {
@@ -539,6 +561,11 @@ void CPU::interpret() {
     case 0xC8:
       INCY();
       break;
+    // JMP
+    case 0x4C:
+    case 0x6C:
+      JMP(lookupTable[opcode].mode);
+      break;
     }
     if (this->PC == prevProgCounter) {
       this->PC += (lookupTable[opcode].bytes - 1);
@@ -574,6 +601,18 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
     uint8_t lo = readFromMemory(pointer);
     uint8_t high = readFromMemory(static_cast<uint8_t>(pointer + 1));
     return ((high << 8) | lo) + this->Y;
+  }
+  case Indirect: {
+    uint16_t pointer = readShortFromMemory(this->PC);
+    uint16_t lo, hi;
+    if ((pointer & 0xFF) == 0xFF) {
+      lo = readFromMemory(pointer);
+      hi = readFromMemory(pointer & 0xFF00);
+    } else {
+      lo = readFromMemory(pointer);
+      hi = readFromMemory(pointer + 1);
+    }
+    return ((hi << 8) | lo);
   }
   case NoneAddressing:
     std::cout << "Error: Addressing mode not found" << "\n";

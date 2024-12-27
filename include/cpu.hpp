@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdint>
-#include <vector>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class CPU {
 public:
@@ -35,6 +35,7 @@ public:
     Absolute_Y,
     Indirect_X,
     Indirect_Y,
+    Indirect,
     NoneAddressing
   };
 
@@ -58,6 +59,7 @@ public:
   uint8_t INC(ADDRESSING mode);
   void INCX();
   void INCY();
+  uint8_t JMP(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
@@ -73,6 +75,8 @@ public:
 
   // CPU Functional Methods
   void reset();
+  void pushOnStack(uint8_t value);
+  uint8_t popFromStack();
 
 private:
   struct instruction {
