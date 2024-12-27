@@ -94,6 +94,8 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x4C, "JMP", 3, 3, ADDRESSING::Absolute},
     {0x6C, "JMP", 3, 5, ADDRESSING::Indirect},
 
+    {0x20, "JSR", 3, 6, ADDRESSING::Absolute},
+
     {0xA9, "LDA", 2, 2, ADDRESSING::Immediate},
     {0xA5, "LDA", 2, 3, ADDRESSING::ZeroPage},
     {0xB5, "LDA", 2, 4, ADDRESSING::ZeroPage_X},
@@ -102,6 +104,12 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xB9, "LDA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
     {0xA1, "LDA", 2, 6, ADDRESSING::Indirect_X},
     {0xB1, "LDA", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
+    {0xA2, "LDX", 2, 2, ADDRESSING::Immediate},
+    {0xA6, "LDX", 2, 3, ADDRESSING::ZeroPage},
+    {0xB6, "LDX", 2, 4, ADDRESSING::ZeroPage_Y},
+    {0xAE, "LDX", 3, 4, ADDRESSING::Absolute},
+    {0xBE, "LDX", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
 
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
@@ -154,6 +162,14 @@ uint8_t CPU::LDA(ADDRESSING mode) {
   uint8_t value = readFromMemory(address);
   this->A = value;
   setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
+uint8_t CPU::LDX(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t value = readFromMemory(address);
+  this->X = value;
+  setZeroAndNegativeFlags(this->X);
   return 0;
 }
 
@@ -336,6 +352,16 @@ void CPU::INCY() {
 uint8_t CPU::JMP(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   this->PC = address;
+  return 0;
+}
+
+uint8_t CPU::JSR(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint16_t data = readShortFromMemory(address);
+  uint16_t stackValue = this->PC + 2;
+  pushOnStack((stackValue & 0xFF00) >> 8);
+  pushOnStack(stackValue & 0xFF);
+  this->PC = data;
   return 0;
 }
 
@@ -565,6 +591,18 @@ void CPU::interpret() {
     case 0x4C:
     case 0x6C:
       JMP(lookupTable[opcode].mode);
+      break;
+    // JSR
+    case 0x20:
+      JSR(lookupTable[opcode].mode);
+      break;
+    // LDX
+    case 0xA2:
+    case 0xA6:
+    case 0xB6:
+    case 0xAE:
+    case 0xBE:
+      LDX(lookupTable[opcode].mode);
       break;
     }
     if (this->PC == prevProgCounter) {

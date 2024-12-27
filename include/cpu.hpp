@@ -40,7 +40,6 @@ public:
   };
 
   // CPU Instructions
-  uint8_t LDA(ADDRESSING mode);
   uint8_t BRK();
   uint8_t TAX();
   uint8_t INX();
@@ -60,6 +59,9 @@ public:
   void INCX();
   void INCY();
   uint8_t JMP(ADDRESSING mode);
+  uint8_t JSR(ADDRESSING mode);
+  uint8_t LDA(ADDRESSING mode);
+  uint8_t LDX(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
