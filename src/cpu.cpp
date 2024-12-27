@@ -111,6 +111,12 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xAE, "LDX", 3, 4, ADDRESSING::Absolute},
     {0xBE, "LDX", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
 
+    {0xA0, "LDY", 2, 2, ADDRESSING::Immediate},
+    {0xA4, "LDY", 2, 3, ADDRESSING::ZeroPage},
+    {0xB4, "LDY", 2, 4, ADDRESSING::ZeroPage_X},
+    {0xAC, "LDY", 3, 4, ADDRESSING::Absolute},
+    {0xBC, "LDY", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
     {0x16, "ASL", 2, 6, ADDRESSING::ZeroPage_X},
@@ -170,6 +176,14 @@ uint8_t CPU::LDX(ADDRESSING mode) {
   uint8_t value = readFromMemory(address);
   this->X = value;
   setZeroAndNegativeFlags(this->X);
+  return 0;
+}
+
+uint8_t CPU::LDY(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t value = readFromMemory(address);
+  this->Y = value;
+  setZeroAndNegativeFlags(this->Y);
   return 0;
 }
 

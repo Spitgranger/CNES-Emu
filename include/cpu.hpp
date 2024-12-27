@@ -62,6 +62,7 @@ public:
   uint8_t JSR(ADDRESSING mode);
   uint8_t LDA(ADDRESSING mode);
   uint8_t LDX(ADDRESSING mode);
+  uint8_t LDY(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
