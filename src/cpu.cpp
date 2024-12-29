@@ -151,6 +151,15 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x6E, "ROR", 3, 6, ADDRESSING::Absolute},
     {0x7E, "ROR", 3, 7, ADDRESSING::Absolute_X},
 
+    {0xE9, "SBC", 2, 2, ADDRESSING::Immediate},
+    {0xE5, "SBC", 2, 3, ADDRESSING::ZeroPage},
+    {0xF5, "SBC", 2, 4, ADDRESSING::ZeroPage_X},
+    {0xED, "SBC", 3, 4, ADDRESSING::Absolute},
+    {0xFD, "SBC", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+    {0xF9, "SBC", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
+    {0xE1, "SBC", 2, 6, ADDRESSING::Indirect_X},
+    {0xF1, "SBC", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
     {0x40, "RTI", 1, 6, ADDRESSING::NoneAddressing},
     {0x60, "RTS", 1, 6, ADDRESSING::NoneAddressing},
 
@@ -536,6 +545,34 @@ uint8_t CPU::RTS() {
   return 0;
 }
 
+uint8_t CPU::SBC(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(address);
+  uint16_t sum = this->A + (~data) + (this->S & FLAGS::C);
+
+  if (~(sum < 0x00)) {
+    this->S |= FLAGS::C;
+  } else {
+    this->S &= ~(FLAGS::C);
+  }
+
+  uint8_t result = static_cast<uint8_t>(sum);
+
+  // Check if overflow occurs as a result of signed addition.
+  // if the accumulator and data have different signs, not possible for
+  // overflow, but if they have the same signs and the result and accumulator
+  // has a different sign, we know that overflow has occurred.
+  if ((this->A ^ result) & (result ^ (~data)) & (1 << 7)) {
+    this->S |= FLAGS::V;
+  } else {
+    this->S &= ~(FLAGS::V);
+  }
+
+  this->A = result;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -841,6 +878,17 @@ void CPU::interpret() {
       break;
     case 0x60:
       RTS();
+      break;
+    // SBC
+    case 0xE9:
+    case 0xE5:
+    case 0xF5:
+    case 0xED:
+    case 0xFD:
+    case 0xF9:
+    case 0xE1:
+    case 0xF1:
+      SBC(lookupTable[opcode].mode);
       break;
     }
     if (this->PC == prevProgCounter) {
