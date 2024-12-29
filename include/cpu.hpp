@@ -9,8 +9,8 @@ public:
   CPU();
   ~CPU();
   // 8 bit registers
-  uint8_t A, X, Y, S, P;
-  uint16_t SP, PC;
+  uint8_t A, X, Y, S, P, SP;
+  uint16_t PC;
   // 16bit address bus width, 64kib total of byte addressable memory
   uint8_t memory[0xFFFF];
 
@@ -66,6 +66,10 @@ public:
   uint8_t LSR(ADDRESSING mode);
   uint8_t LSRAccumulator();
   uint8_t ORA(ADDRESSING mode);
+  uint8_t PHA();
+  uint8_t PHP();
+  uint8_t PLA();
+  uint8_t PLP();
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);

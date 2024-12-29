@@ -2,7 +2,7 @@
 #include <cstring>
 #include <iostream>
 
-#define TOP_OF_STACK 0x100
+#define TOP_OF_STACK 0xFF
 
 std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x00, "BRK", 1, 7, ADDRESSING::NoneAddressing},
@@ -133,6 +133,12 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x19, "ORA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
     {0x01, "ORA", 2, 6, ADDRESSING::Indirect_X},
     {0x11, "ORA", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
+    {0x48, "PHA", 1, 3, ADDRESSING::NoneAddressing},
+    {0x08, "PHP", 1, 3, ADDRESSING::NoneAddressing},
+    {0x08, "PLA", 1, 3, ADDRESSING::NoneAddressing},
+    {0x08, "PLP", 1, 3, ADDRESSING::NoneAddressing},
+
 
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
@@ -429,6 +435,29 @@ uint8_t CPU::ORA(ADDRESSING mode) {
   return 0;
 }
 
+uint8_t CPU::PHA() {
+  pushOnStack(this->A);
+  return 0;
+}
+
+uint8_t CPU::PHP() {
+  pushOnStack(this->S | FLAGS::B);
+  return 0;
+}
+
+uint8_t CPU::PLA() {
+  uint8_t newA = popFromStack();
+  this->A = newA;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
+uint8_t CPU::PLP() {
+  uint8_t newStatus = popFromStack();
+  this->S = newStatus;
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -460,13 +489,13 @@ void CPU::loadProgramAndRun(uint8_t program[], uint32_t size) {
 }
 
 void CPU::pushOnStack(uint8_t value) {
-  writeToMemory(this->SP + 1, value);
-  this->SP += 1;
+  writeToMemory(((0x01 << 8) | (this->SP)), value);
+  this->SP--;
 }
 
 uint8_t CPU::popFromStack() {
-  uint8_t value = readFromMemory(this->SP);
-  this->SP--;
+  this->SP++;
+  uint8_t value = readFromMemory(((0x01 << 8) | this->SP));
   return value;
 }
 
@@ -680,6 +709,33 @@ void CPU::interpret() {
       break;
     // NOP
     case 0xEA:
+      break;
+    // ORA
+    case 0x09:
+    case 0x05:
+    case 0x15:
+    case 0x0D:
+    case 0x1D:
+    case 0x19:
+    case 0x01:
+    case 0x11:
+      ORA(lookupTable[opcode].mode);
+      break;
+    // PHA
+    case 0x48:
+      PHA();
+      break;
+    // PHP
+    case 0x08:
+      PHP();
+      break;
+    // PLA
+    case 0x68:
+      PLA();
+      break;
+    // PLP
+    case 0x28:
+      PLP();
       break;
     }
     if (this->PC == prevProgCounter) {
