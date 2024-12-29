@@ -74,6 +74,8 @@ public:
   uint8_t ROLAccumulator();
   uint8_t ROR(ADDRESSING mode);
   uint8_t RORAccumulator();
+  uint8_t RTI();
+  uint8_t RTS();
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);

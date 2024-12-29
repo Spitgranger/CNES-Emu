@@ -151,6 +151,9 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x6E, "ROR", 3, 6, ADDRESSING::Absolute},
     {0x7E, "ROR", 3, 7, ADDRESSING::Absolute_X},
 
+    {0x40, "RTI", 1, 6, ADDRESSING::NoneAddressing},
+    {0x60, "RTS", 1, 6, ADDRESSING::NoneAddressing},
+
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
     {0x16, "ASL", 2, 6, ADDRESSING::ZeroPage_X},
@@ -515,6 +518,24 @@ uint8_t CPU::ROR(ADDRESSING mode) {
   return 0;
 }
 
+uint8_t CPU::RTI() {
+  // TODO VERIFY
+  uint8_t status = popFromStack();
+  uint16_t lo = popFromStack();
+  uint16_t hi = popFromStack();
+  this->S = status;
+  this->SP = ((hi << 8) | lo);
+  return 0;
+}
+
+uint8_t CPU::RTS() {
+  // TODO VERIFY
+  uint16_t lo = popFromStack();
+  uint16_t hi = popFromStack();
+  this->SP = (((hi << 8) | lo) + 1);
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -813,6 +834,13 @@ void CPU::interpret() {
     case 0x6E:
     case 0x7E:
       ROR(lookupTable[opcode].mode);
+      break;
+    // RTI
+    case 0x40:
+      RTI();
+      break;
+    case 0x60:
+      RTS();
       break;
     }
     if (this->PC == prevProgCounter) {
