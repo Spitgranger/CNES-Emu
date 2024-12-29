@@ -123,6 +123,17 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x4E, "LSR", 3, 6, ADDRESSING::Absolute},
     {0x5E, "LSR", 3, 7, ADDRESSING::Absolute_X},
 
+    {0xEA, "NOP", 1, 2, ADDRESSING::NoneAddressing},
+
+    {0x09, "ORA", 2, 2, ADDRESSING::Immediate},
+    {0x05, "ORA", 2, 3, ADDRESSING::ZeroPage},
+    {0x15, "ORA", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x0D, "ORA", 3, 4, ADDRESSING::Absolute},
+    {0x1D, "ORA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
+    {0x19, "ORA", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_Y},
+    {0x01, "ORA", 2, 6, ADDRESSING::Indirect_X},
+    {0x11, "ORA", 2, 5 /*+1 if page crossed*/, ADDRESSING::Indirect_Y},
+
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
     {0x16, "ASL", 2, 6, ADDRESSING::ZeroPage_X},
@@ -410,6 +421,14 @@ uint8_t CPU::LSR(ADDRESSING mode) {
   return 0;
 }
 
+uint8_t CPU::ORA(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(data);
+  this->A |= data;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -658,6 +677,9 @@ void CPU::interpret() {
     case 0x4E:
     case 0x5E:
       LSR(lookupTable[opcode].mode);
+      break;
+    // NOP
+    case 0xEA:
       break;
     }
     if (this->PC == prevProgCounter) {
