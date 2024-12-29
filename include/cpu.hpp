@@ -63,6 +63,8 @@ public:
   uint8_t LDA(ADDRESSING mode);
   uint8_t LDX(ADDRESSING mode);
   uint8_t LDY(ADDRESSING mode);
+  uint8_t LSR(ADDRESSING mode);
+  uint8_t LSRAccumulator();
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);

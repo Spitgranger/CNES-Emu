@@ -117,6 +117,12 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xAC, "LDY", 3, 4, ADDRESSING::Absolute},
     {0xBC, "LDY", 3, 4 /*+1 if page crossed*/, ADDRESSING::Absolute_X},
 
+    {0x4A, "LSR", 1, 2, ADDRESSING::NoneAddressing},
+    {0x46, "LSR", 2, 5, ADDRESSING::ZeroPage},
+    {0x56, "LSR", 2, 6, ADDRESSING::ZeroPage_X},
+    {0x4E, "LSR", 3, 6, ADDRESSING::Absolute},
+    {0x5E, "LSR", 3, 7, ADDRESSING::Absolute_X},
+
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
     {0x16, "ASL", 2, 6, ADDRESSING::ZeroPage_X},
@@ -379,6 +385,31 @@ uint8_t CPU::JSR(ADDRESSING mode) {
   return 0;
 }
 
+uint8_t CPU::LSRAccumulator() {
+  if (this->A & 0x1) {
+    this->S |= FLAGS::C;
+  } else {
+    this->S &= ~(FLAGS::C);
+  }
+  this->A >>= 1;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
+uint8_t CPU::LSR(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(address);
+  if (data & 0x1) {
+    this->S |= FLAGS::C;
+  } else {
+    this->S &= ~(FLAGS::C);
+  }
+  data >>= 1;
+  setZeroAndNegativeFlags(data);
+  writeToMemory(address, data);
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -617,6 +648,16 @@ void CPU::interpret() {
     case 0xAE:
     case 0xBE:
       LDX(lookupTable[opcode].mode);
+      break;
+    // LSR
+    case 0x4A:
+      LSRAccumulator();
+      break;
+    case 0x46:
+    case 0x56:
+    case 0x4E:
+    case 0x5E:
+      LSR(lookupTable[opcode].mode);
       break;
     }
     if (this->PC == prevProgCounter) {
