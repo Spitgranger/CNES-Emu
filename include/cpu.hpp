@@ -70,6 +70,10 @@ public:
   uint8_t PHP();
   uint8_t PLA();
   uint8_t PLP();
+  uint8_t ROL(ADDRESSING mode);
+  uint8_t ROLAccumulator();
+  uint8_t ROR(ADDRESSING mode);
+  uint8_t RORAccumulator();
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);

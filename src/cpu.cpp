@@ -139,6 +139,17 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x08, "PLA", 1, 3, ADDRESSING::NoneAddressing},
     {0x08, "PLP", 1, 3, ADDRESSING::NoneAddressing},
 
+    {0x2A, "ROL", 1, 2, ADDRESSING::NoneAddressing},
+    {0x26, "ROL", 2, 5, ADDRESSING::ZeroPage},
+    {0x36, "ROL", 2, 6, ADDRESSING::ZeroPage_X},
+    {0x2E, "ROL", 3, 6, ADDRESSING::Absolute},
+    {0x3E, "ROL", 3, 7, ADDRESSING::Absolute_X},
+
+    {0x6A, "ROR", 1, 2, ADDRESSING::NoneAddressing},
+    {0x66, "ROR", 2, 5, ADDRESSING::ZeroPage},
+    {0x76, "ROR", 2, 6, ADDRESSING::ZeroPage_X},
+    {0x6E, "ROR", 3, 6, ADDRESSING::Absolute},
+    {0x7E, "ROR", 3, 7, ADDRESSING::Absolute_X},
 
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
@@ -458,6 +469,52 @@ uint8_t CPU::PLP() {
   return 0;
 }
 
+uint8_t CPU::ROLAccumulator() {
+  // Set Carry flag to 7th bit of the value and move carry bit into bit 0
+  uint8_t c = (this->S & FLAGS::C);
+  this->S |= ((this->A & (1 << 7)) >> 7);
+  this->A <<= 1;
+  this->A |= c;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
+uint8_t CPU::ROL(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(data);
+  // Set Carry flag to 7th bit of the value and move carry bit into bit 0
+  uint8_t c = (this->S & FLAGS::C);
+  this->S |= ((data & (1 << 7)) >> 7);
+  data <<= 1;
+  data |= c;
+  setZeroAndNegativeFlags(data);
+  writeToMemory(address, data);
+  return 0;
+}
+
+uint8_t CPU::RORAccumulator() {
+  // Set Carry flag to 0th bit of the value and move carry bit into bit 7
+  uint8_t c = (this->S & FLAGS::C);
+  this->S |= (this->A & (1 << 0));
+  this->A >>= 1;
+  this->A |= (c << 7);
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
+uint8_t CPU::ROR(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  uint8_t data = readFromMemory(data);
+  // Set Carry flag to 7th bit of the value and move carry bit into bit 7
+  uint8_t c = (this->S & FLAGS::C);
+  this->S |= (data & (1 << 0));
+  data >>= 1;
+  data |= (c << 7);
+  setZeroAndNegativeFlags(data);
+  writeToMemory(address, data);
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -736,6 +793,26 @@ void CPU::interpret() {
     // PLP
     case 0x28:
       PLP();
+      break;
+    // ROL
+    case 0x2A:
+      ROLAccumulator();
+      break;
+    case 0x26:
+    case 0x36:
+    case 0x2E:
+    case 0x3E:
+      ROL(lookupTable[opcode].mode);
+      break;
+    // ROR
+    case 0x6A:
+      RORAccumulator();
+      break;
+    case 0x66:
+    case 0x76:
+    case 0x6E:
+    case 0x7E:
+      ROR(lookupTable[opcode].mode);
       break;
     }
     if (this->PC == prevProgCounter) {
