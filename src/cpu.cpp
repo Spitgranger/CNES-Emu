@@ -163,6 +163,24 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x40, "RTI", 1, 6, ADDRESSING::NoneAddressing},
     {0x60, "RTS", 1, 6, ADDRESSING::NoneAddressing},
 
+    {0x38, "SEC", 1, 6, ADDRESSING::NoneAddressing},
+    {0xF8, "SED", 1, 6, ADDRESSING::NoneAddressing},
+    {0x78, "SEI", 1, 6, ADDRESSING::NoneAddressing},
+
+    {0x86, "STX", 2, 3, ADDRESSING::ZeroPage},
+    {0x96, "STX", 2, 4, ADDRESSING::ZeroPage_Y},
+    {0x8E, "STX", 3, 4, ADDRESSING::Absolute},
+
+    {0x84, "STY", 2, 3, ADDRESSING::ZeroPage},
+    {0x94, "STY", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x8C, "STY", 3, 4, ADDRESSING::Absolute},
+
+    {0xA8, "TAY", 1, 2, ADDRESSING::NoneAddressing},
+    {0xBA, "TSX", 1, 2, ADDRESSING::NoneAddressing},
+    {0x8A, "TXA", 1, 2, ADDRESSING::NoneAddressing},
+    {0x9A, "TXS", 1, 2, ADDRESSING::NoneAddressing},
+    {0x98, "TYA", 1, 2, ADDRESSING::NoneAddressing},
+
     {0x0A, "ASL", 1, 2, ADDRESSING::NoneAddressing},
     {0x06, "ASL", 2, 5, ADDRESSING::ZeroPage},
     {0x16, "ASL", 2, 6, ADDRESSING::ZeroPage_X},
@@ -573,6 +591,62 @@ uint8_t CPU::SBC(ADDRESSING mode) {
   return 0;
 }
 
+uint8_t CPU::SEC() {
+  this->S |= FLAGS::C;
+  return 0;
+}
+
+uint8_t CPU::SED() {
+  this->S |= FLAGS::D;
+  return 0;
+}
+
+uint8_t CPU::SEI() {
+  this->S |= FLAGS::I;
+  return 0;
+}
+
+uint8_t CPU::STX(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  writeToMemory(address, this->X);
+  return 0;
+}
+
+uint8_t CPU::STY(ADDRESSING mode) {
+  uint16_t address = getOperandAddress(mode);
+  writeToMemory(address, this->Y);
+  return 0;
+}
+
+uint8_t CPU::TAY() {
+  this->Y = this->A;
+  setZeroAndNegativeFlags(this->Y);
+  return 0;
+}
+
+uint8_t CPU::TSX() {
+  this->X = this->SP;
+  setZeroAndNegativeFlags(this->X);
+  return 0;
+}
+
+uint8_t CPU::TXA() {
+  this->A = this->X;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
+uint8_t CPU::TXS() {
+  this->SP = this->X;
+  return 0;
+}
+
+uint8_t CPU::TYA() {
+  this->A = this->Y;
+  setZeroAndNegativeFlags(this->A);
+  return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
@@ -889,6 +963,49 @@ void CPU::interpret() {
     case 0xE1:
     case 0xF1:
       SBC(lookupTable[opcode].mode);
+      break;
+    // SEC
+    case 0x38:
+      SEC();
+      break;
+    // SED
+    case 0xF8:
+      SED();
+      break;
+    // SEI
+    case 0x78:
+      SEI();
+      break;
+    // STX
+    case 0x86:
+    case 0x96:
+    case 0x8E:
+      STX(lookupTable[opcode].mode);
+      break;
+    // STY
+    case 0x84:
+    case 0x94:
+    case 0x8C:
+      STY(lookupTable[opcode].mode);
+      break;
+    // TAY
+    case 0xA8:
+      TAY();
+      break;
+    // TSX
+    case 0xBA:
+      TSX();
+      break;
+    // TXA
+    case 0x8A:
+      TXA();
+      break;
+    // TXS
+    case 0x9A:
+      TXS();
+      break;
+    case 0x98:
+      TYA();
       break;
     }
     if (this->PC == prevProgCounter) {

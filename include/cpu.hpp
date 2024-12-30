@@ -77,6 +77,16 @@ public:
   uint8_t RTI();
   uint8_t RTS();
   uint8_t SBC(ADDRESSING mode);
+  uint8_t SEC();
+  uint8_t SED();
+  uint8_t SEI();
+  uint8_t STX(ADDRESSING mode);
+  uint8_t STY(ADDRESSING mode);
+  uint8_t TAY();
+  uint8_t TSX();
+  uint8_t TXA();
+  uint8_t TXS();
+  uint8_t TYA();
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
