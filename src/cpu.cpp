@@ -668,8 +668,8 @@ void CPU::writeShortToMemory(uint16_t address, uint16_t data) {
 }
 
 void CPU::loadProgram(uint8_t program[], uint32_t size) {
-  memmove(&(this->memory[0x8000]), program, size);
-  this->PC = 0x8000;
+  memmove(&(this->memory[0x6000]), program, size);
+  writeShortToMemory(0xFFFC, 0x6000);
 }
 
 void CPU::loadProgramAndRun(uint8_t program[], uint32_t size) {
@@ -688,8 +688,13 @@ uint8_t CPU::popFromStack() {
   return value;
 }
 
-void CPU::interpret() {
+void CPU::interpret() { interpretWithCB(nullptr); }
+
+void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
   for (;;) {
+    if (callback != nullptr) {
+      callback(this);
+    }
     uint8_t opcode = this->memory[this->PC];
     this->PC++;
     uint16_t prevProgCounter = this->PC;
@@ -1066,5 +1071,7 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
 
 void CPU::reset() {
   this->PC = readShortFromMemory(0xFFFC);
-  this->S -= 3;
+  this->S = 0;
+  this->A = 0;
+  this->X = 0;
 }

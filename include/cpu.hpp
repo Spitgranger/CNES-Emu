@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 class CPU {
 public:
@@ -99,6 +100,7 @@ public:
 
   // This method is for testing, receives programs as a seperate input stream
   void interpret();
+  void interpretWithCB(const std::function<void(CPU*)> &callback);
 
   // CPU Functional Methods
   void reset();
