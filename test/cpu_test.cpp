@@ -38,10 +38,10 @@ TEST_F(CPUTest, TestLDAZeroFlag) {
 
 TEST_F(CPUTest, TestTAX) {
   cpu.A = 10;
-  uint8_t program[2] = {0xAA, 0x00};
-  cpu.loadProgramAndRun(program, 2);
+  uint8_t program[4] = {0xA9, 0x10, 0xAA, 0x00};
+  cpu.loadProgramAndRun(program, 4);
   // Expect value of 10 in register X
-  EXPECT_EQ(cpu.X, 10);
+  EXPECT_EQ(cpu.X, 0x10);
   // expect zero flag 0
   EXPECT_EQ(cpu.S & 0b00000010, 0b00);
 }
@@ -56,8 +56,8 @@ TEST_F(CPUTest, TestSimpleProgramFiveOps) {
 
 TEST_F(CPUTest, TestINXOverflow) {
   cpu.X = 0xFF;
-  uint8_t program[3] = {0xE8, 0xE8, 0x00};
-  cpu.loadProgramAndRun(program, 3);
+  uint8_t program[6] = {0xA9, 0xFF, 0xAA, 0xE8, 0xE8, 0x00};
+  cpu.loadProgramAndRun(program, 6);
   // Expect value of c1 in register X
   EXPECT_EQ(cpu.X, 1);
 }
@@ -67,8 +67,8 @@ TEST_F(CPUTest, TestADCBasicAdditionWithoutCarry) {
   cpu.S &= ~CPU::FLAGS::C; // Clear carry flag
 
   // Simulate an operand to be added.
-  uint8_t program[3] = {0x69, 0x20, 0x00};
-  cpu.loadProgramAndRun(program, 3);
+  uint8_t program[5] = {0xA9, 0x10, 0x69, 0x20, 0x00};
+  cpu.loadProgramAndRun(program, 5);
 
   // Expect accumulator to be 16 + 32 = 48
   EXPECT_EQ(cpu.A, 0x30);              // 0x30 = 48
@@ -79,8 +79,8 @@ TEST_F(CPUTest, TestADCCarryFlagSet) {
   cpu.A = 0xFF;           // Maximum value for an 8-bit unsigned number
   cpu.S |= CPU::FLAGS::C; // Set carry flag
 
-  uint8_t program[3] = {0x69, 0x01, 0x00};
-  cpu.loadProgramAndRun(program, 3);
+  uint8_t program[6] = {0xA9, 0xFF, 0x38, 0x69, 0x01, 0x00};
+  cpu.loadProgramAndRun(program, 6);
 
   // Expect accumulator to be 0x00 (256 % 257 = 0) with carry flag set
   EXPECT_EQ(cpu.A, 0x01);
@@ -94,8 +94,8 @@ TEST_F(CPUTest, TestADCSignedOverflowFlagSet) {
   // Perform ADC with carry (no carry flag set in this case)
   cpu.S &= ~CPU::FLAGS::C;
 
-  uint8_t program[3] = {0x69, 0x01, 0x00};
-  cpu.loadProgramAndRun(program, 3);
+  uint8_t program[6] = {0xA9, 0x7F, 0x18, 0x69, 0x01, 0x00};
+  cpu.loadProgramAndRun(program, 6);
 
   // Expect an overflow, because 127 + 1 = 128, which exceeds the signed 8-bit
   // range
@@ -108,8 +108,8 @@ TEST_F(CPUTest, TestADCSignedOverflowNegativeResult) {
   cpu.A = 0x80;            // -128 (signed)
   cpu.S &= ~CPU::FLAGS::C; // Clear carry flag
 
-  uint8_t program[3] = {0x69, 0xFF, 0x00};
-  cpu.loadProgramAndRun(program, 3);
+  uint8_t program[6] = {0xA9, 0x80, 0x18, 0x69, 0xFF, 0x00};
+  cpu.loadProgramAndRun(program, 6);
 
   // Expect an overflow, because -128 + (-1) = -129, which is out of the range
   EXPECT_EQ(cpu.A, 0x7F); // Result is 127 (overflow)
@@ -120,8 +120,8 @@ TEST_F(CPUTest, TestADCSignedOverflowNegativeResult) {
 TEST_F(CPUTest, TestADCAdditionWithZeroOperand) {
   cpu.A = 0x50; // 80
 
-  uint8_t program[3] = {0x69, 0x00, 0x00};
-  cpu.loadProgramAndRun(program, 3);
+  uint8_t program[5] = {0xA9, 0x50, 0x69, 0x00, 0x00};
+  cpu.loadProgramAndRun(program, 5);
 
   // Expect the accumulator to remain the same, because we're adding zero
   EXPECT_EQ(cpu.A, 0x50);              // No change
@@ -134,8 +134,8 @@ TEST_F(CPUTest, TestADCNegativeAddition) {
 
   cpu.S &= ~CPU::FLAGS::C; // Clear carry flag
 
-  uint8_t program[3] = {0x69, 0xF0, 0x00};
-  cpu.loadProgramAndRun(program, 3);
+  uint8_t program[6] = {0xA9, 0xF0, 0x18, 0x69, 0xF0, 0x00};
+  cpu.loadProgramAndRun(program, 6);
 
   // Expected result: -16 + (-16) = -32
   EXPECT_EQ(cpu.A, 0xE0);              // -32 in two's complement
