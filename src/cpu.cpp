@@ -338,7 +338,7 @@ uint8_t CPU::ASLAccumulator() {
 void CPU::branch(bool condition) {
   if (condition) {
     int8_t offset = readFromMemory(this->PC);
-    uint16_t newAddress = this->PC + 1 + offset;
+    uint16_t newAddress = this->PC + 1 + static_cast<uint16_t>(offset);
     this->PC = newAddress;
   }
 }
@@ -407,7 +407,7 @@ void CPU::DECY() {
 
 uint8_t CPU::EOR(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
-  uint8_t data = readFromMemory(data);
+  uint8_t data = readFromMemory(address);
   this->A ^= data;
   setZeroAndNegativeFlags(this->A);
   return 0;
@@ -415,7 +415,7 @@ uint8_t CPU::EOR(ADDRESSING mode) {
 
 uint8_t CPU::INC(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
-  uint8_t data = readFromMemory(data);
+  uint8_t data = readFromMemory(address);
   data += 1;
   setZeroAndNegativeFlags(data);
   writeToMemory(address, data);
@@ -435,11 +435,10 @@ uint8_t CPU::JMP(ADDRESSING mode) {
 
 uint8_t CPU::JSR(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
-  uint16_t data = readShortFromMemory(address);
-  uint16_t stackValue = this->PC + 2;
+  uint16_t stackValue = this->PC + 1;
   pushOnStack((stackValue & 0xFF00) >> 8);
   pushOnStack(stackValue & 0xFF);
-  this->PC = data;
+  this->PC = address;
   return 0;
 }
 
@@ -470,7 +469,7 @@ uint8_t CPU::LSR(ADDRESSING mode) {
 
 uint8_t CPU::ORA(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
-  uint8_t data = readFromMemory(data);
+  uint8_t data = readFromMemory(address);
   this->A |= data;
   setZeroAndNegativeFlags(this->A);
   return 0;
@@ -482,7 +481,10 @@ uint8_t CPU::PHA() {
 }
 
 uint8_t CPU::PHP() {
-  pushOnStack(this->S | FLAGS::B);
+  uint8_t s = this->S;
+  s |= FLAGS::B;
+  s |= FLAGS::U;
+  pushOnStack(s | FLAGS::B);
   return 0;
 }
 
@@ -496,6 +498,8 @@ uint8_t CPU::PLA() {
 uint8_t CPU::PLP() {
   uint8_t newStatus = popFromStack();
   this->S = newStatus;
+  this->S &= (~FLAGS::B);
+  this->S |= FLAGS::U;
   return 0;
 }
 
@@ -511,7 +515,7 @@ uint8_t CPU::ROLAccumulator() {
 
 uint8_t CPU::ROL(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
-  uint8_t data = readFromMemory(data);
+  uint8_t data = readFromMemory(address);
   // Set Carry flag to 7th bit of the value and move carry bit into bit 0
   uint8_t c = (this->S & FLAGS::C);
   this->S |= ((data & (1 << 7)) >> 7);
@@ -534,7 +538,7 @@ uint8_t CPU::RORAccumulator() {
 
 uint8_t CPU::ROR(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
-  uint8_t data = readFromMemory(data);
+  uint8_t data = readFromMemory(address);
   // Set Carry flag to 7th bit of the value and move carry bit into bit 7
   uint8_t c = (this->S & FLAGS::C);
   this->S |= (data & (1 << 0));
@@ -548,10 +552,12 @@ uint8_t CPU::ROR(ADDRESSING mode) {
 uint8_t CPU::RTI() {
   // TODO VERIFY
   uint8_t status = popFromStack();
+  status &= (~FLAGS::B);
+  status |= (~FLAGS::U);
   uint16_t lo = popFromStack();
   uint16_t hi = popFromStack();
   this->S = status;
-  this->SP = ((hi << 8) | lo);
+  this->PC = ((hi << 8) | lo);
   return 0;
 }
 
@@ -559,35 +565,60 @@ uint8_t CPU::RTS() {
   // TODO VERIFY
   uint16_t lo = popFromStack();
   uint16_t hi = popFromStack();
-  this->SP = (((hi << 8) | lo) + 1);
+  this->PC = (((hi << 8) | lo) + 1);
   return 0;
 }
 
 uint8_t CPU::SBC(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint8_t data = readFromMemory(address);
-  uint16_t sum = this->A + (~data) + (this->S & FLAGS::C);
 
-  if (~(sum < 0x00)) {
+  // Calculate the effective carry: 1 if carry flag is set, 0 otherwise
+  uint8_t carry = (this->S & FLAGS::C) ? 1 : 0;
+
+  // Perform subtraction using two's complement arithmetic
+  uint16_t result = this->A - data - (1 - carry);
+
+  // Update Carry Flag (set if result >= 0)
+  if (result <= 0xFF) {
     this->S |= FLAGS::C;
   } else {
-    this->S &= ~(FLAGS::C);
+    this->S &= ~FLAGS::C;
   }
 
-  uint8_t result = static_cast<uint8_t>(sum);
-
-  // Check if overflow occurs as a result of signed addition.
-  // if the accumulator and data have different signs, not possible for
-  // overflow, but if they have the same signs and the result and accumulator
-  // has a different sign, we know that overflow has occurred.
-  if ((this->A ^ result) & (result ^ (~data)) & (1 << 7)) {
+  // Update Overflow Flag (set if signed overflow occurs)
+  if (((this->A ^ data) & 0x80) && ((this->A ^ result) & 0x80)) {
     this->S |= FLAGS::V;
   } else {
-    this->S &= ~(FLAGS::V);
+    this->S &= ~FLAGS::V;
   }
 
-  this->A = result;
+  // Update Accumulator and Flags
+  this->A = static_cast<uint8_t>(result);
   setZeroAndNegativeFlags(this->A);
+
+//  uint16_t sum = this->A + (~data) + (this->S & FLAGS::C);
+//
+//  if (~(sum < 0x00)) {
+//    this->S |= FLAGS::C;
+//  } else {
+//    this->S &= ~(FLAGS::C);
+//  }
+//
+//  uint8_t result = static_cast<uint8_t>(sum);
+//
+//  // Check if overflow occurs as a result of signed addition.
+//  // if the accumulator and data have different signs, not possible for
+//  // overflow, but if they have the same signs and the result and accumulator
+//  // has a different sign, we know that overflow has occurred.
+//  if ((this->A ^ result) & (result ^ (~data)) & (1 << 7)) {
+//    this->S |= FLAGS::V;
+//  } else {
+//    this->S &= ~(FLAGS::V);
+//  }
+//
+//  this->A = result;
+//  setZeroAndNegativeFlags(this->A);
   return 0;
 }
 
@@ -662,18 +693,19 @@ uint16_t CPU::readShortFromMemory(uint16_t address) {
 
 void CPU::writeShortToMemory(uint16_t address, uint16_t data) {
   uint8_t lo = data & 0x00FF;
-  uint8_t hi = data & 0xFF00;
+  uint8_t hi = ((data & 0xFF00) >> 8);
   this->memory[address] = lo;
   this->memory[address + 1] = hi;
 }
 
 void CPU::loadProgram(uint8_t program[], uint32_t size) {
-  memmove(&(this->memory[0x6000]), program, size);
-  writeShortToMemory(0xFFFC, 0x6000);
+  memmove(&(this->memory[0x0600]), program, size);
+  writeShortToMemory(0xFFFC, 0x0600);
 }
 
 void CPU::loadProgramAndRun(uint8_t program[], uint32_t size) {
   loadProgram(program, size);
+  reset();
   interpret();
 }
 
@@ -1051,7 +1083,7 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
   case Indirect: {
     uint16_t pointer = readShortFromMemory(this->PC);
     uint16_t lo, hi;
-    if ((pointer & 0xFF) == 0xFF) {
+    if ((pointer & 0x00FF) == 0x00FF) {
       lo = readFromMemory(pointer);
       hi = readFromMemory(pointer & 0xFF00);
     } else {
@@ -1061,7 +1093,7 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
     return ((hi << 8) | lo);
   }
   case NoneAddressing:
-    std::cout << "Error: Addressing mode not found" << "\n";
+    // std::cout << "Error: Addressing mode not found" << "\n";
     return -1;
   default:
     std::cout << "Error: Addressing mode not found" << "\n";

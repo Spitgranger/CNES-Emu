@@ -5,10 +5,10 @@
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_video.h>
-#include <iostream>
 #include <chrono>
-#include <thread>
+#include <iostream>
 #include <random>
+#include <thread>
 
 uint8_t game[] = {
     0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0x20, 0x2a, 0x06,
@@ -79,14 +79,29 @@ SDL_Color mapColor(uint8_t byte) {
   case 2:
   case 9:
     return {120, 120, 120, 255};
+  case 3:
+  case 10:
+    return {255, 0, 0, 255};
+  case 4:
+  case 11:
+    return {0, 255, 0, 255};
+  case 5:
+  case 12:
+    return {0, 0, 255, 255};
+  case 6:
+  case 13:
+    return {255, 0, 255, 255};
+  case 7:
+  case 14:
+    return {0, 255, 255, 255};
   }
-  return {0, 0, 0, 0};
+  return {0, 0, 0, 255};
 }
 
 bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
   uint16_t frameIndex = 0;
   bool update = false;
-  for (uint16_t i = 0x0200; i < 0x600; i++) {
+  for (uint16_t i = 0x0200; i < 0x0600; i++) {
     uint8_t colorIndex = cpu->readFromMemory(i);
     SDL_Color color = mapColor(colorIndex);
     uint8_t r = color.r;
@@ -103,8 +118,6 @@ bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
   }
   return update;
 }
-
-void cpuCallback(CPU *cpu) {}
 
 int main() {
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -126,11 +139,11 @@ int main() {
     processInput(cpu);
     cpu->writeToMemory(0xfe, distribution(generator));
     if (readScreenState(cpu, screenState)) {
-            SDL_UpdateTexture(texture, nullptr, screenState, 32*3);
-            SDL_RenderClear(renderer);
-            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-            SDL_RenderPresent(renderer);
+      SDL_UpdateTexture(texture, nullptr, screenState, 32 * 3);
+      SDL_RenderClear(renderer);
+      SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+      SDL_RenderPresent(renderer);
     }
-        std::this_thread::sleep_for(std::chrono::microseconds(7));
+    std::this_thread::sleep_for(std::chrono::microseconds(7));
   });
 }
