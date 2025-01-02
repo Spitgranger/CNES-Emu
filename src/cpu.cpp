@@ -270,9 +270,6 @@ uint8_t CPU::INX() {
 
 uint8_t CPU::STA(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
-  if (mode == ADDRESSING::Indirect_Y) {
-    std::cout << std::hex << address << "\n";
-  }
   writeToMemory(address, this->A);
   return 0;
 }
@@ -802,7 +799,7 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
       break;
     // BCC
     case 0x90:
-      branch(~(this->S & FLAGS::C));
+      branch(!(this->S & FLAGS::C));
       break;
     // BCS
     case 0xB0:
@@ -823,15 +820,15 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
       break;
     // BNE
     case 0xD0:
-      branch(~(this->S & FLAGS::Z));
+      branch(!(this->S & FLAGS::Z));
       break;
     // BPL
     case 0x10:
-      branch(~(this->S & FLAGS::N));
+      branch(!(this->S & FLAGS::N));
       break;
     // BVC
     case 0x50:
-      branch(~(this->S & FLAGS::V));
+      branch(!(this->S & FLAGS::V));
       break;
     // BVS
     case 0x70:
