@@ -197,12 +197,12 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
 };
 
 CPU::CPU() {
-  CPU::A = 0x00;
-  CPU::X = 0x00;
-  CPU::Y = 0x00;
-  CPU::S = (0x00 | FLAGS::I);
-  CPU::PC = 0x0000;
-  CPU::SP = TOP_OF_STACK;
+  this->A = 0x00;
+  this->X = 0x00;
+  this->Y = 0x00;
+  this->S = (0x00 | FLAGS::I);
+  this->PC = 0x0000;
+  this->SP = TOP_OF_STACK;
 
   // Best way I can think of to accomplish this for now
   for (instruction ins : CPU::opcodeTable) {
@@ -337,9 +337,9 @@ uint8_t CPU::ASLAccumulator() {
 
 void CPU::branch(bool condition) {
   if (condition) {
-    int8_t offset = readFromMemory(this->PC);
+    int8_t offset = static_cast<int8_t>(readFromMemory(this->PC));
     uint16_t newAddress = this->PC + 1 + static_cast<uint16_t>(offset);
-    this->PC = newAddress;
+    this->PC = newAddress & 0xFFFF;
   }
 }
 
@@ -371,12 +371,12 @@ uint8_t CPU::BIT(ADDRESSING mode) {
 void CPU::compare(ADDRESSING mode, uint8_t reg) {
   uint16_t address = getOperandAddress(mode);
   uint8_t data = readFromMemory(address);
-  if (this->A >= data) {
+  if (reg >= data) {
     this->S |= FLAGS::C;
   } else {
     this->S &= ~(FLAGS::C);
   }
-  setZeroAndNegativeFlags(static_cast<uint8_t>(this->A - data));
+  setZeroAndNegativeFlags(static_cast<uint8_t>(reg - data));
 }
 
 uint8_t CPU::DEC(ADDRESSING mode) {
@@ -1041,6 +1041,7 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     case 0x9A:
       TXS();
       break;
+    // TYA
     case 0x98:
       TYA();
       break;

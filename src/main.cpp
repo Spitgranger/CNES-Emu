@@ -125,13 +125,13 @@ int main() {
   }
   SDL_Window *window =
       SDL_CreateWindow("test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                       32.0 * 10, 32.0 * 10, SDL_WINDOW_SHOWN);
+                       32 * 10, 32 * 10, SDL_WINDOW_SHOWN);
   SDL_Renderer *renderer =
       SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   SDL_RenderSetScale(renderer, 10, 10);
   SDL_Texture *texture =
       SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
-                        SDL_TEXTUREACCESS_STREAMING, 32.0 * 10, 32.0 * 10);
+                        SDL_TEXTUREACCESS_STREAMING, 32, 32);
   CPU cpu = CPU();
   cpu.loadProgram(game, sizeof(game));
   cpu.reset();
@@ -144,6 +144,6 @@ int main() {
       SDL_RenderCopy(renderer, texture, nullptr, nullptr);
       SDL_RenderPresent(renderer);
     }
-    std::this_thread::sleep_for(std::chrono::microseconds(7));
+    std::this_thread::sleep_for(std::chrono::microseconds(16));
   });
 }
