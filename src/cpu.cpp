@@ -270,6 +270,9 @@ uint8_t CPU::INX() {
 
 uint8_t CPU::STA(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
+  if (mode == ADDRESSING::Indirect_Y) {
+    std::cout << std::hex << address << "\n";
+  }
   writeToMemory(address, this->A);
   return 0;
 }
@@ -436,8 +439,8 @@ uint8_t CPU::JMP(ADDRESSING mode) {
 uint8_t CPU::JSR(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint16_t stackValue = this->PC + 1;
-  pushOnStack((stackValue & 0xFF00) >> 8);
-  pushOnStack(stackValue & 0xFF);
+  pushOnStack(static_cast<uint8_t>(stackValue >> 8));
+  pushOnStack(static_cast<uint8_t>(stackValue & 0xFF));
   this->PC = address;
   return 0;
 }
@@ -681,6 +684,7 @@ uint8_t CPU::TYA() {
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
+  //std::cout << std::hex << address << "\n";
   this->memory[address] = data;
 }
 
@@ -710,13 +714,13 @@ void CPU::loadProgramAndRun(uint8_t program[], uint32_t size) {
 }
 
 void CPU::pushOnStack(uint8_t value) {
-  writeToMemory(((0x01 << 8) | (this->SP)), value);
+  writeToMemory(static_cast<uint16_t>((0x0100) + (this->SP)), value);
   this->SP--;
 }
 
 uint8_t CPU::popFromStack() {
   this->SP++;
-  uint8_t value = readFromMemory(((0x01 << 8) | this->SP));
+  uint8_t value = readFromMemory(((0x0100) + this->SP));
   return value;
 }
 
@@ -799,12 +803,15 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     // BCC
     case 0x90:
       branch(~(this->S & FLAGS::C));
+      break;
     // BCS
     case 0xB0:
       branch((this->S & FLAGS::C));
+      break;
     // BEQ
     case 0xF0:
       branch((this->S & FLAGS::Z));
+      break;
     // BIT
     case 0x24:
     case 0x2C:
@@ -1057,29 +1064,29 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
   case Immediate:
     return this->PC;
   case ZeroPage:
-    return readFromMemory(this->PC);
+    return static_cast<uint16_t>(readFromMemory(this->PC));
   case ZeroPage_X:
-    return readFromMemory(this->PC) + this->X;
+    return static_cast<uint16_t>(static_cast<uint8_t>(readFromMemory(this->PC) + this->X));
   case ZeroPage_Y:
-    return readFromMemory(this->PC) + this->Y;
+    return static_cast<uint16_t>(static_cast<uint8_t>(readFromMemory(this->PC) + this->Y));
   case Absolute:
     return readShortFromMemory(this->PC);
   case Absolute_X:
-    return readShortFromMemory(this->PC) + this->X;
+    return static_cast<uint16_t>(readShortFromMemory(this->PC) + this->X);
   case Absolute_Y:
-    return readShortFromMemory(this->PC) + this->Y;
+    return static_cast<uint16_t>(readShortFromMemory(this->PC) + this->Y);
   case Indirect_X: {
     uint8_t base = readFromMemory(this->PC);
-    uint8_t pointer = base + this->X;
-    uint8_t lo = readFromMemory(pointer);
-    uint8_t high = readFromMemory(static_cast<uint8_t>(pointer + 1));
+    uint8_t pointer = static_cast<uint8_t>(base + this->X);
+    uint16_t lo = readFromMemory(pointer);
+    uint16_t high = readFromMemory(static_cast<uint8_t>(pointer + 1));
     return ((high << 8) | lo);
   }
   case Indirect_Y: {
     uint8_t pointer = readFromMemory(this->PC);
-    uint8_t lo = readFromMemory(pointer);
-    uint8_t high = readFromMemory(static_cast<uint8_t>(pointer + 1));
-    return ((high << 8) | lo) + this->Y;
+    uint16_t lo = readFromMemory(pointer);
+    uint16_t high = readFromMemory(static_cast<uint8_t>(pointer + 1));
+    return static_cast<uint16_t>(((high << 8) | lo) + this->Y);
   }
   case Indirect: {
     uint16_t pointer = readShortFromMemory(this->PC);
@@ -1095,7 +1102,7 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
   }
   case NoneAddressing:
     // std::cout << "Error: Addressing mode not found" << "\n";
-    return -1;
+    return 0xFFFF;
   default:
     std::cout << "Error: Addressing mode not found" << "\n";
     return -1;
@@ -1104,7 +1111,10 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
 
 void CPU::reset() {
   this->PC = readShortFromMemory(0xFFFC);
+  this->SP = 0xFD;
   this->S = 0;
+  this->S |= FLAGS::U;
+  this->S |= FLAGS::B;
   this->A = 0;
   this->X = 0;
 }

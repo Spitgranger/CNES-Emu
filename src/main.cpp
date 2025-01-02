@@ -41,7 +41,7 @@ uint8_t game[] = {
 uint8_t screenState[32 * 3 * 32] = {0};
 
 std::default_random_engine generator;
-std::uniform_int_distribution<uint8_t> distribution(1, 16);
+std::uniform_int_distribution<uint8_t> distribution(0, 255);
 
 void processInput(CPU *cpu) {
   SDL_Event event;
@@ -93,9 +93,9 @@ SDL_Color mapColor(uint8_t byte) {
     return {255, 0, 255, 255};
   case 7:
   case 14:
-    return {0, 255, 255, 255};
+    return {255, 255, 0, 255};
   }
-  return {0, 0, 0, 255};
+  return {0, 255, 255, 255};
 }
 
 bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
@@ -103,6 +103,7 @@ bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
   bool update = false;
   for (uint16_t i = 0x0200; i < 0x0600; i++) {
     uint8_t colorIndex = cpu->readFromMemory(i);
+//    std::cout << std::hex << static_cast<int>(colorIndex) << "\n";
     SDL_Color color = mapColor(colorIndex);
     uint8_t r = color.r;
     uint8_t g = color.g;
@@ -126,16 +127,26 @@ int main() {
   SDL_Window *window =
       SDL_CreateWindow("test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                        32 * 10, 32 * 10, SDL_WINDOW_SHOWN);
+  if (window == NULL) {
+    std::cout << "Error creating window" << "\n";
+  }
   SDL_Renderer *renderer =
       SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  if (renderer == NULL) {
+    std::cout << "Error creating renderer" << "\n";
+  }
   SDL_RenderSetScale(renderer, 10, 10);
   SDL_Texture *texture =
       SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
                         SDL_TEXTUREACCESS_STREAMING, 32, 32);
+  if (texture == NULL) {
+    std::cout << "Error creating texture" << "\n";
+  }
   CPU cpu = CPU();
   cpu.loadProgram(game, sizeof(game));
   cpu.reset();
   cpu.interpretWithCB([&](CPU *cpu) {
+    SDL_PumpEvents();
     processInput(cpu);
     cpu->writeToMemory(0xfe, distribution(generator));
     if (readScreenState(cpu, screenState)) {
