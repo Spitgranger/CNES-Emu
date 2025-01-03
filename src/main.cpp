@@ -41,7 +41,7 @@ uint8_t game[] = {
 uint8_t screenState[32 * 3 * 32] = {0};
 
 std::default_random_engine generator;
-std::uniform_int_distribution<uint8_t> distribution(0, 255);
+std::uniform_int_distribution<uint8_t> distribution(1, 16);
 
 void processInput(CPU *cpu) {
   SDL_Event event;
@@ -146,7 +146,6 @@ int main() {
   cpu.loadProgram(game, sizeof(game));
   cpu.reset();
   cpu.interpretWithCB([&](CPU *cpu) {
-    SDL_PumpEvents();
     processInput(cpu);
     cpu->writeToMemory(0xfe, distribution(generator));
     if (readScreenState(cpu, screenState)) {

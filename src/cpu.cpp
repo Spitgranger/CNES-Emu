@@ -574,10 +574,10 @@ uint8_t CPU::SBC(ADDRESSING mode) {
   uint8_t data = readFromMemory(address);
 
   // Calculate the effective carry: 1 if carry flag is set, 0 otherwise
-  uint8_t carry = (this->S & FLAGS::C) ? 1 : 0;
+  uint8_t carry = (this->S & FLAGS::C) ? 0 : 1;
 
   // Perform subtraction using two's complement arithmetic
-  uint16_t result = this->A - data - (1 - carry);
+  uint16_t result = this->A - data - carry;
 
   // Update Carry Flag (set if result >= 0)
   if (result <= 0xFF) {
