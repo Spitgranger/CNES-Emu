@@ -203,6 +203,7 @@ CPU::CPU() {
   this->S = (0x00 | FLAGS::I);
   this->PC = 0x0000;
   this->SP = TOP_OF_STACK;
+  this->bus = Bus();
   memset(this->memory, 0, sizeof(this->memory));
 
   // Best way I can think of to accomplish this for now
@@ -680,29 +681,37 @@ uint8_t CPU::TYA() {
   return 0;
 }
 
-uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
+uint8_t CPU::readFromMemory(uint16_t address) {
+  return this->bus.readFromMemory(address);
+}
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
   // std::cout << std::hex << address << "\n";
-  this->memory[address] = data;
+  // this->memory[address] = data;
+  this->bus.writeToMemory(address, data);
 }
 
 uint16_t CPU::readShortFromMemory(uint16_t address) {
   // 6502 uses little endian addressing
-  uint16_t lo = this->memory[address];
-  uint16_t hi = this->memory[address + 1];
-  return (hi << 8 | lo);
+  // uint16_t lo = this->memory[address];
+  // uint16_t hi = this->memory[address + 1];
+  // return (hi << 8 | lo);
+  return this->bus.readShortFromMemory(address);
 }
 
 void CPU::writeShortToMemory(uint16_t address, uint16_t data) {
-  uint8_t lo = data & 0x00FF;
-  uint8_t hi = ((data & 0xFF00) >> 8);
-  this->memory[address] = lo;
-  this->memory[address + 1] = hi;
+  this->bus.writeShortToMemory(address, data);
+  // uint8_t lo = data & 0x00FF;
+  // uint8_t hi = ((data & 0xFF00) >> 8);
+  // this->memory[address] = lo;
+  // this->memory[address + 1] = hi;
 }
 
 void CPU::loadProgram(uint8_t program[], uint32_t size) {
-  memmove(&(this->memory[0x0600]), program, size);
+  // memmove(&(this->memory[0x0600]), program, size);
+  for (uint32_t i = 0; i < size; i++) {
+    writeToMemory(0x0000 + i, program[i]);
+  }
   writeShortToMemory(0xFFFC, 0x0600);
 }
 
@@ -730,7 +739,7 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     if (callback != nullptr) {
       callback(this);
     }
-    uint8_t opcode = this->memory[this->PC];
+    uint8_t opcode = readFromMemory(this->PC);
     this->PC++;
     uint16_t prevProgCounter = this->PC;
     switch (opcode) {

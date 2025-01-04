@@ -11,7 +11,7 @@ FetchContent_Declare(
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 FetchContent_MakeAvailable(googletest)
-add_executable(nes src/main.cpp src/cpu.cpp)
+add_executable(nes src/main.cpp src/cpu.cpp src/bus.cpp)
 target_include_directories(nes PRIVATE include)
 target_link_libraries(nes ${SDL2_LIBRARIES})
 
@@ -21,6 +21,7 @@ add_executable(
   cpu_test
   test/cpu_test.cpp
   src/cpu.cpp
+  src/bus.cpp
 )
 target_include_directories(cpu_test PRIVATE include)
 target_link_libraries(

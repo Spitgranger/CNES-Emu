@@ -1,9 +1,11 @@
 #pragma once
+#include "bus.hpp"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <functional>
+
 
 class CPU {
 public:
@@ -123,4 +125,5 @@ private:
   static std::vector<instruction> opcodeTable;
   std::unordered_map<uint16_t, instruction> lookupTable;
   void setZeroAndNegativeFlags(uint8_t value);
+  Bus bus;
 };
