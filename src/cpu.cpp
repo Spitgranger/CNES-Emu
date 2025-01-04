@@ -203,6 +203,7 @@ CPU::CPU() {
   this->S = (0x00 | FLAGS::I);
   this->PC = 0x0000;
   this->SP = TOP_OF_STACK;
+  memset(this->memory, 0, sizeof(this->memory));
 
   // Best way I can think of to accomplish this for now
   for (instruction ins : CPU::opcodeTable) {
@@ -597,28 +598,29 @@ uint8_t CPU::SBC(ADDRESSING mode) {
   this->A = static_cast<uint8_t>(result);
   setZeroAndNegativeFlags(this->A);
 
-//  uint16_t sum = this->A + (~data) + (this->S & FLAGS::C);
-//
-//  if (~(sum < 0x00)) {
-//    this->S |= FLAGS::C;
-//  } else {
-//    this->S &= ~(FLAGS::C);
-//  }
-//
-//  uint8_t result = static_cast<uint8_t>(sum);
-//
-//  // Check if overflow occurs as a result of signed addition.
-//  // if the accumulator and data have different signs, not possible for
-//  // overflow, but if they have the same signs and the result and accumulator
-//  // has a different sign, we know that overflow has occurred.
-//  if ((this->A ^ result) & (result ^ (~data)) & (1 << 7)) {
-//    this->S |= FLAGS::V;
-//  } else {
-//    this->S &= ~(FLAGS::V);
-//  }
-//
-//  this->A = result;
-//  setZeroAndNegativeFlags(this->A);
+  //  uint16_t sum = this->A + (~data) + (this->S & FLAGS::C);
+  //
+  //  if (~(sum < 0x00)) {
+  //    this->S |= FLAGS::C;
+  //  } else {
+  //    this->S &= ~(FLAGS::C);
+  //  }
+  //
+  //  uint8_t result = static_cast<uint8_t>(sum);
+  //
+  //  // Check if overflow occurs as a result of signed addition.
+  //  // if the accumulator and data have different signs, not possible for
+  //  // overflow, but if they have the same signs and the result and
+  //  accumulator
+  //  // has a different sign, we know that overflow has occurred.
+  //  if ((this->A ^ result) & (result ^ (~data)) & (1 << 7)) {
+  //    this->S |= FLAGS::V;
+  //  } else {
+  //    this->S &= ~(FLAGS::V);
+  //  }
+  //
+  //  this->A = result;
+  //  setZeroAndNegativeFlags(this->A);
   return 0;
 }
 
@@ -681,7 +683,7 @@ uint8_t CPU::TYA() {
 uint8_t CPU::readFromMemory(uint16_t address) { return this->memory[address]; }
 
 void CPU::writeToMemory(uint16_t address, uint8_t data) {
-  //std::cout << std::hex << address << "\n";
+  // std::cout << std::hex << address << "\n";
   this->memory[address] = data;
 }
 
@@ -878,7 +880,7 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     case 0xD6:
     case 0xCE:
     case 0xDE:
-      compare(lookupTable[opcode].mode, this->Y);
+      DEC(lookupTable[opcode].mode);
       break;
     // DEX
     case 0xCA:
@@ -1063,9 +1065,11 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
   case ZeroPage:
     return static_cast<uint16_t>(readFromMemory(this->PC));
   case ZeroPage_X:
-    return static_cast<uint16_t>(static_cast<uint8_t>(readFromMemory(this->PC) + this->X));
+    return static_cast<uint16_t>(
+        static_cast<uint8_t>(readFromMemory(this->PC) + this->X));
   case ZeroPage_Y:
-    return static_cast<uint16_t>(static_cast<uint8_t>(readFromMemory(this->PC) + this->Y));
+    return static_cast<uint16_t>(
+        static_cast<uint8_t>(readFromMemory(this->PC) + this->Y));
   case Absolute:
     return readShortFromMemory(this->PC);
   case Absolute_X:

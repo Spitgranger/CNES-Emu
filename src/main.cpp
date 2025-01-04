@@ -154,6 +154,6 @@ int main() {
       SDL_RenderCopy(renderer, texture, nullptr, nullptr);
       SDL_RenderPresent(renderer);
     }
-    std::this_thread::sleep_for(std::chrono::microseconds(16));
+    std::this_thread::sleep_for(std::chrono::microseconds(32));
   });
 }
