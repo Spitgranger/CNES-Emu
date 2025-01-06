@@ -5,9 +5,14 @@
 #define PRG_ROM_PAGE_SIZE 0x4000
 #define CHR_ROM_PAGE_SIZE 0x2000
 
-Bus::Bus(Rom rom) { 
+Bus::Bus(std::vector<uint8_t> romData) { 
   memset(this->cpuVram, 0, sizeof(cpuVram));
-  this->rom = rom;
+  std::optional<Rom> decodedRom = readBytes(romData);
+  if (decodedRom.has_value()) {
+    this->rom = decodedRom.value();
+  } else {
+    this->rom = Rom{};
+  }
 }
 
 uint8_t Bus::readFromMemory(uint16_t address) {
@@ -21,7 +26,7 @@ uint8_t Bus::readFromMemory(uint16_t address) {
     uint16_t mirroredAddress = address & 0b0010000000000111;
     // TODO implement PPU
   }
-  std::cout << "Ignoring invalid memory access at" << address << "\n";
+  std::cout << "Read From Memory: Ignoring invalid memory access at " << address << "\n";
   return 0;
 }
 
@@ -37,7 +42,7 @@ void Bus::writeToMemory(uint16_t address, uint8_t data) {
   } else if (address >= 0x8000 && address <= 0xFFFF) {
     std::cout << "Attempt write to prog rom at " << address << "\n";
   }
-  std::cout << "Ignoring invalid memory access at" << address << "\n";
+  std::cout << " Write to memory: Ignoring invalid memory access at " << address << "\n";
 }
 
 uint16_t Bus::readShortFromMemory(uint16_t address) {
@@ -51,7 +56,7 @@ uint16_t Bus::readShortFromMemory(uint16_t address) {
   } else if (address >= 0x8000 && address <= 0xFFFF) {
     return readShortFromPrgRom(address);
   }
-  std::cout << "Ignoring invalid memory access at" << address << "\n";
+  std::cout << "Read Short From Memory: Ignoring invalid memory access at " << address << "\n";
   return 0;
 }
 
@@ -84,10 +89,14 @@ void Bus::writeShortToMemory(uint16_t address, uint16_t data) {
     // TODO implement PPU
     return;
   }
-  std::cout << "Ignoring invalid memory access at" << address << "\n";
+  std::cout << "Write Short to memory: Ignoring invalid memory access at" << address << "\n";
 }
 
 std::optional<Rom> Bus::readBytes(std::vector<uint8_t>& raw) {
+  if (raw.empty()) {
+    // Method for testing, allows for construction of a bus with an empty ROM
+    return {};
+  }
   if (raw[0] != 0x4E || raw[1] != 0x45 || raw[2] != 0x53 || raw[3] != 0x1A) {
     return {};
   }

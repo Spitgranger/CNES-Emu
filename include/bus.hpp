@@ -23,7 +23,7 @@ struct Rom {
 
 class Bus {
 public:
-  Bus(Rom rom);
+  Bus(std::vector<uint8_t> romData);
   void writeToMemory(uint16_t address, uint8_t data);
   uint8_t readFromMemory(uint16_t address);
   void writeShortToMemory(uint16_t address, uint16_t data);

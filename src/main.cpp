@@ -122,7 +122,7 @@ bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
 }
 
 int main() {
-  std::ifstream input("./snake.nes", std::ios::binary);
+  std::ifstream input("./nestest.nes", std::ios::binary);
   std::vector<uint8_t> buffer(std::istreambuf_iterator<char>(input), {});
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     std::cout << "Error" << SDL_GetError();
@@ -144,16 +144,13 @@ int main() {
   if (texture == NULL) {
     std::cout << "Error creating texture" << "\n";
   }
-  std::optional<Rom> rom = Bus::readBytes(buffer);
-  if (!rom.has_value()) {
-    return -1;
-  }
-  CPU cpu = CPU(rom.value());
+  Bus bus = Bus(buffer);
+  CPU cpu = CPU(bus);
   //cpu.loadProgram(game, sizeof(game));
   cpu.reset();
   cpu.interpretWithCB([&](CPU *cpu) {
     processInput(cpu);
-    cpu->writeToMemory(0xfe, distribution(generator));
+//    cpu->writeToMemory(0xfe, distribution(generator));
     if (readScreenState(cpu, screenState)) {
       SDL_UpdateTexture(texture, nullptr, screenState, 32 * 3);
       SDL_RenderClear(renderer);

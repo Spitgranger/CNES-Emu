@@ -4,7 +4,8 @@
 
 class CPUTest : public ::testing::Test {
 protected:
-  CPU cpu;
+  Bus bus = Bus(std::vector<uint8_t>());
+  CPU cpu = CPU(bus);
 
   void SetUp() override {
     cpu.S = 0; // Clear the flags before each test

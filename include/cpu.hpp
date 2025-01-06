@@ -9,7 +9,7 @@
 
 class CPU {
 public:
-  CPU(Rom rom);
+  CPU(Bus bus);
   ~CPU();
   // 8 bit registers
   uint8_t A, X, Y, S, P, SP;

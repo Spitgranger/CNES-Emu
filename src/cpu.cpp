@@ -196,7 +196,7 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x91, "STA", 2, 6, ADDRESSING::Indirect_Y},
 };
 
-CPU::CPU(Rom rom) : bus(rom){
+CPU::CPU(Bus bus) : bus(bus){
   this->A = 0x00;
   this->X = 0x00;
   this->Y = 0x00;
@@ -1119,7 +1119,8 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
 }
 
 void CPU::reset() {
-  this->PC = 0x8600; //readShortFromMemory(0xFFFC);
+  writeShortToMemory(0xFFFC, 0x8000);
+  this->PC = readShortFromMemory(0xFFFC);
   this->SP = 0xFD;
   this->S = 0;
   this->S |= FLAGS::U;
