@@ -23,14 +23,17 @@ struct Rom {
 
 class Bus {
 public:
-  Bus();
+  Bus(Rom rom);
   void writeToMemory(uint16_t address, uint8_t data);
   uint8_t readFromMemory(uint16_t address);
   void writeShortToMemory(uint16_t address, uint16_t data);
   uint16_t readShortFromMemory(uint16_t address);
-  std::optional<Rom> readBytes(std::vector<uint8_t> raw);
+  static std::optional<Rom> readBytes(std::vector<uint8_t>& raw);
 private:
   uint8_t cpuVram[2048];
+  uint8_t readPrgRom(uint16_t address);
+  uint16_t readShortFromPrgRom(uint16_t address);
+  Rom rom;
 };
 
 

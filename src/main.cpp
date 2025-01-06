@@ -6,6 +6,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_video.h>
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <random>
 #include <thread>
@@ -103,7 +104,7 @@ bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
   bool update = false;
   for (uint16_t i = 0x0200; i < 0x0600; i++) {
     uint8_t colorIndex = cpu->readFromMemory(i);
-//    std::cout << std::hex << static_cast<int>(colorIndex) << "\n";
+    //    std::cout << std::hex << static_cast<int>(colorIndex) << "\n";
     SDL_Color color = mapColor(colorIndex);
     uint8_t r = color.r;
     uint8_t g = color.g;
@@ -121,6 +122,8 @@ bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
 }
 
 int main() {
+  std::ifstream input("./snake.nes", std::ios::binary);
+  std::vector<uint8_t> buffer(std::istreambuf_iterator<char>(input), {});
   if (SDL_Init(SDL_INIT_VIDEO) < 0) {
     std::cout << "Error" << SDL_GetError();
   }
@@ -136,14 +139,17 @@ int main() {
     std::cout << "Error creating renderer" << "\n";
   }
   SDL_RenderSetScale(renderer, 10, 10);
-  SDL_Texture *texture =
-      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
-                        SDL_TEXTUREACCESS_STREAMING, 32, 32);
+  SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
+                                           SDL_TEXTUREACCESS_STREAMING, 32, 32);
   if (texture == NULL) {
     std::cout << "Error creating texture" << "\n";
   }
-  CPU cpu = CPU();
-  cpu.loadProgram(game, sizeof(game));
+  std::optional<Rom> rom = Bus::readBytes(buffer);
+  if (!rom.has_value()) {
+    return -1;
+  }
+  CPU cpu = CPU(rom.value());
+  //cpu.loadProgram(game, sizeof(game));
   cpu.reset();
   cpu.interpretWithCB([&](CPU *cpu) {
     processInput(cpu);

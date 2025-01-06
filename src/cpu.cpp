@@ -196,14 +196,13 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x91, "STA", 2, 6, ADDRESSING::Indirect_Y},
 };
 
-CPU::CPU() {
+CPU::CPU(Rom rom) : bus(rom){
   this->A = 0x00;
   this->X = 0x00;
   this->Y = 0x00;
   this->S = (0x00 | FLAGS::I);
-  this->PC = 0x0000;
+  this->PC = 0x8000;
   this->SP = TOP_OF_STACK;
-  this->bus = Bus();
   memset(this->memory, 0, sizeof(this->memory));
 
   // Best way I can think of to accomplish this for now
@@ -710,9 +709,9 @@ void CPU::writeShortToMemory(uint16_t address, uint16_t data) {
 void CPU::loadProgram(uint8_t program[], uint32_t size) {
   // memmove(&(this->memory[0x0600]), program, size);
   for (uint32_t i = 0; i < size; i++) {
-    writeToMemory(0x0000 + i, program[i]);
+    writeToMemory(0x8000 + i, program[i]);
   }
-  writeShortToMemory(0xFFFC, 0x0600);
+  writeShortToMemory(0xFFFC, 0x8000);
 }
 
 void CPU::loadProgramAndRun(uint8_t program[], uint32_t size) {
@@ -1120,7 +1119,7 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
 }
 
 void CPU::reset() {
-  this->PC = readShortFromMemory(0xFFFC);
+  this->PC = 0x8600; //readShortFromMemory(0xFFFC);
   this->SP = 0xFD;
   this->S = 0;
   this->S |= FLAGS::U;

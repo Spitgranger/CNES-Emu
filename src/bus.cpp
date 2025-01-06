@@ -5,13 +5,19 @@
 #define PRG_ROM_PAGE_SIZE 0x4000
 #define CHR_ROM_PAGE_SIZE 0x2000
 
-Bus::Bus() { memset(this->cpuVram, 0, sizeof(cpuVram)); }
+Bus::Bus(Rom rom) { 
+  memset(this->cpuVram, 0, sizeof(cpuVram));
+  this->rom = rom;
+}
 
 uint8_t Bus::readFromMemory(uint16_t address) {
   if (address >= RAM_START && address <= RAM_END) {
     uint16_t mirroredAddress = address & 0b0000011111111111;
     return this->cpuVram[mirroredAddress];
-  } else if (address >= PPU_START && address <= PPU_END) {
+  } else if (address >= 0x8000 && address <= 0xFFFF) {
+    return readPrgRom(address);
+  }
+  else if (address >= PPU_START && address <= PPU_END) {
     uint16_t mirroredAddress = address & 0b0010000000000111;
     // TODO implement PPU
   }
@@ -28,6 +34,8 @@ void Bus::writeToMemory(uint16_t address, uint8_t data) {
     uint16_t mirroredAddress = address & 0b0010000000000111;
     // TODO implement PPU
     return;
+  } else if (address >= 0x8000 && address <= 0xFFFF) {
+    std::cout << "Attempt write to prog rom at " << address << "\n";
   }
   std::cout << "Ignoring invalid memory access at" << address << "\n";
 }
@@ -40,9 +48,29 @@ uint16_t Bus::readShortFromMemory(uint16_t address) {
   } else if (address >= PPU_START && address <= PPU_END) {
     uint16_t mirroredAddress = address & 0b0010000000000111;
     // TODO implement PPU
+  } else if (address >= 0x8000 && address <= 0xFFFF) {
+    return readShortFromPrgRom(address);
   }
   std::cout << "Ignoring invalid memory access at" << address << "\n";
   return 0;
+}
+
+uint8_t Bus::readPrgRom(uint16_t address) {
+  address -= 0x8000;
+  if (this->rom.progRom.size() == 0x4000 && address >= 0x4000) {
+    address = address % 0x4000;
+  }
+  return this->rom.progRom[address];
+}
+
+uint16_t Bus::readShortFromPrgRom(uint16_t address) {
+  address -= 0x8000;
+  if (this->rom.progRom.size() == 0x4000 && address >= 0x4000) {
+    address = address % 0x4000;
+  }
+  uint16_t lo = this->rom.progRom[address];
+  uint16_t hi = this->rom.progRom[address + 1];
+  return (hi << 8) | lo;
 }
 
 void Bus::writeShortToMemory(uint16_t address, uint16_t data) {
@@ -59,7 +87,7 @@ void Bus::writeShortToMemory(uint16_t address, uint16_t data) {
   std::cout << "Ignoring invalid memory access at" << address << "\n";
 }
 
-std::optional<Rom> readBytes(std::vector<uint8_t> raw) {
+std::optional<Rom> Bus::readBytes(std::vector<uint8_t>& raw) {
   if (raw[0] != 0x4E || raw[1] != 0x45 || raw[2] != 0x53 || raw[3] != 0x1A) {
     return {};
   }
