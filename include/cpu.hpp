@@ -99,6 +99,7 @@ public:
   void loadProgram(uint8_t program[], uint32_t size);
   void loadProgramAndRun(uint8_t program[], uint32_t size);
   uint16_t getOperandAddress(ADDRESSING mode);
+  uint16_t getAbsoluteAddress(ADDRESSING mode, uint16_t address);
 
   // This method is for testing, receives programs as a seperate input stream
   void interpret();
@@ -109,7 +110,6 @@ public:
   void pushOnStack(uint8_t value);
   uint8_t popFromStack();
 
-private:
   struct instruction {
     // Opcode of the instruction
     uint8_t opcode;
@@ -125,5 +125,6 @@ private:
   static std::vector<instruction> opcodeTable;
   std::unordered_map<uint16_t, instruction> lookupTable;
   void setZeroAndNegativeFlags(uint8_t value);
+private:
   Bus bus;
 };

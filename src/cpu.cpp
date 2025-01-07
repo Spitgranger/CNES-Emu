@@ -196,7 +196,7 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x91, "STA", 2, 6, ADDRESSING::Indirect_Y},
 };
 
-CPU::CPU(Bus bus) : bus(bus){
+CPU::CPU(Bus bus) : bus(bus) {
   this->A = 0x00;
   this->X = 0x00;
   this->Y = 0x00;
@@ -1066,10 +1066,8 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
   }
 }
 
-uint16_t CPU::getOperandAddress(ADDRESSING mode) {
+uint16_t CPU::getAbsoluteAddress(ADDRESSING mode, uint16_t address) {
   switch (mode) {
-  case Immediate:
-    return this->PC;
   case ZeroPage:
     return static_cast<uint16_t>(readFromMemory(this->PC));
   case ZeroPage_X:
@@ -1118,8 +1116,16 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
   }
 }
 
+uint16_t CPU::getOperandAddress(ADDRESSING mode) {
+  switch (mode) {
+  case Immediate:
+    return this->PC;
+  default:
+    return getAbsoluteAddress(mode, this->PC);
+  }
+}
+
 void CPU::reset() {
-  writeShortToMemory(0xFFFC, 0x8000);
   this->PC = readShortFromMemory(0xFFFC);
   this->SP = 0xFD;
   this->S = 0;

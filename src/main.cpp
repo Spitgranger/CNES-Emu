@@ -148,6 +148,7 @@ int main() {
   CPU cpu = CPU(bus);
   //cpu.loadProgram(game, sizeof(game));
   cpu.reset();
+  cpu.PC = 0x8000;
   cpu.interpretWithCB([&](CPU *cpu) {
     processInput(cpu);
 //    cpu->writeToMemory(0xfe, distribution(generator));
