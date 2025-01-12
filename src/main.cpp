@@ -150,14 +150,15 @@ int main() {
   cpu.reset();
   cpu.PC = 0x8000;
   cpu.interpretWithCB([&](CPU *cpu) {
-    processInput(cpu);
+    std::cout << traceCpuState(cpu) << "\n";
+//    processInput(cpu);
 //    cpu->writeToMemory(0xfe, distribution(generator));
-    if (readScreenState(cpu, screenState)) {
-      SDL_UpdateTexture(texture, nullptr, screenState, 32 * 3);
-      SDL_RenderClear(renderer);
-      SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-      SDL_RenderPresent(renderer);
-    }
-    std::this_thread::sleep_for(std::chrono::microseconds(32));
+//    if (readScreenState(cpu, screenState)) {
+//      SDL_UpdateTexture(texture, nullptr, screenState, 32 * 3);
+//      SDL_RenderClear(renderer);
+//      SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+//      SDL_RenderPresent(renderer);
+//    }
+//    std::this_thread::sleep_for(std::chrono::microseconds(32));
   });
 }

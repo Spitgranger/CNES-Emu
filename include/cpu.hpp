@@ -128,3 +128,5 @@ public:
 private:
   Bus bus;
 };
+
+std::string traceCpuState(CPU *cpu);

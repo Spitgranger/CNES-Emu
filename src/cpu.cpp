@@ -136,8 +136,8 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
 
     {0x48, "PHA", 1, 3, ADDRESSING::NoneAddressing},
     {0x08, "PHP", 1, 3, ADDRESSING::NoneAddressing},
-    {0x08, "PLA", 1, 3, ADDRESSING::NoneAddressing},
-    {0x08, "PLP", 1, 3, ADDRESSING::NoneAddressing},
+    {0x68, "PLA", 1, 3, ADDRESSING::NoneAddressing},
+    {0x28, "PLP", 1, 3, ADDRESSING::NoneAddressing},
 
     {0x2A, "ROL", 1, 2, ADDRESSING::NoneAddressing},
     {0x26, "ROL", 2, 5, ADDRESSING::ZeroPage},
