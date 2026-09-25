@@ -714,12 +714,6 @@ void CPU::loadProgram(uint8_t program[], uint32_t size) {
   writeShortToMemory(0xFFFC, 0x8000);
 }
 
-void CPU::loadProgramAndRun(uint8_t program[], uint32_t size) {
-  loadProgram(program, size);
-  reset();
-  interpret();
-}
-
 void CPU::pushOnStack(uint8_t value) {
   writeToMemory(static_cast<uint16_t>((0x0100) + (this->SP)), value);
   this->SP--;

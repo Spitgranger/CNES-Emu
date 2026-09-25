@@ -97,7 +97,6 @@ public:
   uint16_t readShortFromMemory(uint16_t address);
   void writeShortToMemory(uint16_t address, uint16_t data);
   void loadProgram(uint8_t program[], uint32_t size);
-  void loadProgramAndRun(uint8_t program[], uint32_t size);
   uint16_t getOperandAddress(ADDRESSING mode);
   uint16_t getAbsoluteAddress(ADDRESSING mode, uint16_t address);
 
