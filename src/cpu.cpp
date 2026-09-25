@@ -507,7 +507,13 @@ uint8_t CPU::PLP() {
 uint8_t CPU::ROLAccumulator() {
   // Set Carry flag to 7th bit of the value and move carry bit into bit 0
   uint8_t c = (this->P & FLAGS::C);
-  this->P |= ((this->A & (1 << 7)) >> 7);
+  uint8_t topBit = this->A & (1 << 7);
+  if (((topBit >> 7) & 1) == 0) {
+    this->P &= ~FLAGS::C;
+  }
+  else {
+    this->P |= FLAGS::C;
+  }
   this->A <<= 1;
   this->A |= c;
   setZeroAndNegativeFlags(this->A);
@@ -519,7 +525,13 @@ uint8_t CPU::ROL(ADDRESSING mode) {
   uint8_t data = readFromMemory(address);
   // Set Carry flag to 7th bit of the value and move carry bit into bit 0
   uint8_t c = (this->P & FLAGS::C);
-  this->P |= ((data & (1 << 7)) >> 7);
+  uint8_t topBit = data & (1 << 7);
+  if (((topBit >> 7) & 1) == 0) {
+    this->P &= ~FLAGS::C;
+  }
+  else {
+    this->P |= FLAGS::C;
+  }
   data <<= 1;
   data |= c;
   setZeroAndNegativeFlags(data);
@@ -530,7 +542,13 @@ uint8_t CPU::ROL(ADDRESSING mode) {
 uint8_t CPU::RORAccumulator() {
   // Set Carry flag to 0th bit of the value and move carry bit into bit 7
   uint8_t c = (this->P & FLAGS::C);
-  this->P |= (this->A & (1 << 0));
+  uint8_t outgoingCarry = (this->A & (1 << 0));
+  if ((outgoingCarry & 1) == 0) {
+    this->P &= ~FLAGS::C;
+  }
+  else {
+    this->P |= FLAGS::C;
+  }
   this->A >>= 1;
   this->A |= (c << 7);
   setZeroAndNegativeFlags(this->A);
@@ -542,7 +560,13 @@ uint8_t CPU::ROR(ADDRESSING mode) {
   uint8_t data = readFromMemory(address);
   // Set Carry flag to 7th bit of the value and move carry bit into bit 7
   uint8_t c = (this->P & FLAGS::C);
-  this->P |= (data & (1 << 0));
+  uint8_t outgoingCarry = data & (1 << 0);
+  if ((outgoingCarry & 1) == 0) {
+    this->P &= ~FLAGS::C;
+  }
+  else {
+    this->P |= FLAGS::C;
+  }
   data >>= 1;
   data |= (c << 7);
   setZeroAndNegativeFlags(data);
@@ -554,7 +578,7 @@ uint8_t CPU::RTI() {
   // TODO VERIFY
   uint8_t status = popFromStack();
   status &= (~FLAGS::B);
-  status |= (~FLAGS::U);
+  status |= (FLAGS::U);
   uint16_t lo = popFromStack();
   uint16_t hi = popFromStack();
   this->P = status;
@@ -740,6 +764,13 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     case 0x00:
       BRK();
       return;
+    case 0xA0:
+    case 0xA4:
+    case 0xB4:
+    case 0xAC:
+    case 0xBC:
+      LDY(lookupTable[opcode].mode);
+      break;
     // LDA
     case 0xA9:
     case 0xA5:
