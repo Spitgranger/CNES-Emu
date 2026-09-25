@@ -124,26 +124,26 @@ bool readScreenState(CPU *cpu, uint8_t frame[32 * 3 * 32]) {
 int main() {
   std::ifstream input("./nestest.nes", std::ios::binary);
   std::vector<uint8_t> buffer(std::istreambuf_iterator<char>(input), {});
-  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-    std::cout << "Error" << SDL_GetError();
-  }
-  SDL_Window *window =
-      SDL_CreateWindow("test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                       32 * 10, 32 * 10, SDL_WINDOW_SHOWN);
-  if (window == NULL) {
-    std::cout << "Error creating window" << "\n";
-  }
-  SDL_Renderer *renderer =
-      SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-  if (renderer == NULL) {
-    std::cout << "Error creating renderer" << "\n";
-  }
-  SDL_RenderSetScale(renderer, 10, 10);
-  SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
-                                           SDL_TEXTUREACCESS_STREAMING, 32, 32);
-  if (texture == NULL) {
-    std::cout << "Error creating texture" << "\n";
-  }
+//  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+//    std::cout << "Error" << SDL_GetError();
+//  }
+//  SDL_Window *window =
+//      SDL_CreateWindow("test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+//                       32 * 10, 32 * 10, SDL_WINDOW_SHOWN);
+//  if (window == NULL) {
+//    std::cout << "Error creating window" << "\n";
+//  }
+//  SDL_Renderer *renderer =
+//      SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+//  if (renderer == NULL) {
+//    std::cout << "Error creating renderer" << "\n";
+//  }
+//  SDL_RenderSetScale(renderer, 10, 10);
+//  SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
+//                                           SDL_TEXTUREACCESS_STREAMING, 32, 32);
+//  if (texture == NULL) {
+//    std::cout << "Error creating texture" << "\n";
+//  }
   Bus bus = Bus(buffer);
   CPU cpu = CPU(bus);
   //cpu.loadProgram(game, sizeof(game));

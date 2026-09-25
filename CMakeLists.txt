@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_BUILD_TYPE Debug)
@@ -8,7 +8,8 @@ include(FetchContent)
 include_directories(${SDL2_INCLUDE_DIRS})
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+  URL https://github.com/google/googletest/archive/refs/tags/v1.18.0.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(googletest)
 add_executable(nes src/main.cpp src/cpu.cpp src/bus.cpp src/debug.cpp)

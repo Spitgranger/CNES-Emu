@@ -12,7 +12,7 @@ public:
   CPU(Bus bus);
   ~CPU();
   // 8 bit registers
-  uint8_t A, X, Y, S, P, SP;
+  uint8_t A, X, Y, P, SP;
   uint16_t PC;
   // 16bit address bus width, 64kib total of byte addressable memory
   uint8_t memory[0xFFFF];

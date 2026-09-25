@@ -200,7 +200,7 @@ CPU::CPU(Bus bus) : bus(bus) {
   this->A = 0x00;
   this->X = 0x00;
   this->Y = 0x00;
-  this->S = (0x00 | FLAGS::I);
+  this->P = (0x00 | FLAGS::I);
   this->PC = 0x8000;
   this->SP = TOP_OF_STACK;
   memset(this->memory, 0, sizeof(this->memory));
@@ -217,14 +217,14 @@ CPU::~CPU() {
 
 void CPU::setZeroAndNegativeFlags(uint8_t value) {
   if (value == 0) {
-    S |= FLAGS::Z;
+    this->P |= FLAGS::Z;
   } else {
-    S &= ~(FLAGS::Z);
+    this->P &= ~(FLAGS::Z);
   }
   if (value & (1 << 7)) {
-    S |= FLAGS::N;
+    this->P |= FLAGS::N;
   } else {
-    S &= ~(FLAGS::N);
+    this->P &= ~(FLAGS::N);
   }
 }
 
@@ -253,7 +253,7 @@ uint8_t CPU::LDY(ADDRESSING mode) {
 }
 
 uint8_t CPU::BRK() {
-  this->S |= FLAGS::B;
+  this->P |= FLAGS::B;
   return 0;
 }
 
@@ -278,12 +278,12 @@ uint8_t CPU::STA(ADDRESSING mode) {
 uint8_t CPU::ADC(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint8_t data = readFromMemory(address);
-  uint16_t sum = this->A + data + (this->S & FLAGS::C);
+  uint16_t sum = this->A + data + (this->P & FLAGS::C);
 
   if (sum > 0xFF) {
-    this->S |= FLAGS::C;
+    this->P |= FLAGS::C;
   } else {
-    this->S &= ~(FLAGS::C);
+    this->P &= ~(FLAGS::C);
   }
 
   uint8_t result = static_cast<uint8_t>(sum);
@@ -293,9 +293,9 @@ uint8_t CPU::ADC(ADDRESSING mode) {
   // overflow, but if they have the same signs and the result and accumulator
   // has a different sign, we know that overflow has occurred.
   if (~(this->A ^ data) & (this->A ^ result) & (1 << 7)) {
-    this->S |= FLAGS::V;
+    this->P |= FLAGS::V;
   } else {
-    this->S &= ~(FLAGS::V);
+    this->P &= ~(FLAGS::V);
   }
 
   this->A = result;
@@ -315,9 +315,9 @@ uint8_t CPU::ASL(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint8_t operand = readFromMemory(address);
   if (operand >> 7) {
-    this->S |= FLAGS::C;
+    this->P |= FLAGS::C;
   } else {
-    this->S &= ~(FLAGS::C);
+    this->P &= ~(FLAGS::C);
   }
   operand <<= 1;
   writeToMemory(address, operand);
@@ -327,9 +327,9 @@ uint8_t CPU::ASL(ADDRESSING mode) {
 
 uint8_t CPU::ASLAccumulator() {
   if (this->A >> 7) {
-    this->S |= FLAGS::C;
+    this->P |= FLAGS::C;
   } else {
-    this->S &= ~(FLAGS::C);
+    this->P &= ~(FLAGS::C);
   }
   this->A <<= 1;
   setZeroAndNegativeFlags(this->A);
@@ -349,21 +349,21 @@ uint8_t CPU::BIT(ADDRESSING mode) {
   uint8_t operand = readFromMemory(address);
   uint8_t result = this->A & operand;
   if (result == 0) {
-    this->S |= FLAGS::Z;
+    this->P |= FLAGS::Z;
   } else {
-    this->S &= ~(FLAGS::Z);
+    this->P &= ~(FLAGS::Z);
   }
 
   if (operand >> 7) {
-    this->S |= FLAGS::N;
+    this->P |= FLAGS::N;
   } else {
-    this->S &= ~(FLAGS::N);
+    this->P &= ~(FLAGS::N);
   }
 
   if (operand >> 6) {
-    this->S |= FLAGS::V;
+    this->P |= FLAGS::V;
   } else {
-    this->S &= ~(FLAGS::V);
+    this->P &= ~(FLAGS::V);
   }
 
   return 0;
@@ -373,9 +373,9 @@ void CPU::compare(ADDRESSING mode, uint8_t reg) {
   uint16_t address = getOperandAddress(mode);
   uint8_t data = readFromMemory(address);
   if (reg >= data) {
-    this->S |= FLAGS::C;
+    this->P |= FLAGS::C;
   } else {
-    this->S &= ~(FLAGS::C);
+    this->P &= ~(FLAGS::C);
   }
   setZeroAndNegativeFlags(static_cast<uint8_t>(reg - data));
 }
@@ -445,9 +445,9 @@ uint8_t CPU::JSR(ADDRESSING mode) {
 
 uint8_t CPU::LSRAccumulator() {
   if (this->A & 0x1) {
-    this->S |= FLAGS::C;
+    this->P |= FLAGS::C;
   } else {
-    this->S &= ~(FLAGS::C);
+    this->P &= ~(FLAGS::C);
   }
   this->A >>= 1;
   setZeroAndNegativeFlags(this->A);
@@ -458,9 +458,9 @@ uint8_t CPU::LSR(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint8_t data = readFromMemory(address);
   if (data & 0x1) {
-    this->S |= FLAGS::C;
+    this->P |= FLAGS::C;
   } else {
-    this->S &= ~(FLAGS::C);
+    this->P &= ~(FLAGS::C);
   }
   data >>= 1;
   setZeroAndNegativeFlags(data);
@@ -482,7 +482,7 @@ uint8_t CPU::PHA() {
 }
 
 uint8_t CPU::PHP() {
-  uint8_t s = this->S;
+  uint8_t s = this->P;
   s |= FLAGS::B;
   s |= FLAGS::U;
   pushOnStack(s | FLAGS::B);
@@ -498,16 +498,16 @@ uint8_t CPU::PLA() {
 
 uint8_t CPU::PLP() {
   uint8_t newStatus = popFromStack();
-  this->S = newStatus;
-  this->S &= (~FLAGS::B);
-  this->S |= FLAGS::U;
+  this->P = newStatus;
+  this->P &= (~FLAGS::B);
+  this->P |= FLAGS::U;
   return 0;
 }
 
 uint8_t CPU::ROLAccumulator() {
   // Set Carry flag to 7th bit of the value and move carry bit into bit 0
-  uint8_t c = (this->S & FLAGS::C);
-  this->S |= ((this->A & (1 << 7)) >> 7);
+  uint8_t c = (this->P & FLAGS::C);
+  this->P |= ((this->A & (1 << 7)) >> 7);
   this->A <<= 1;
   this->A |= c;
   setZeroAndNegativeFlags(this->A);
@@ -518,8 +518,8 @@ uint8_t CPU::ROL(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint8_t data = readFromMemory(address);
   // Set Carry flag to 7th bit of the value and move carry bit into bit 0
-  uint8_t c = (this->S & FLAGS::C);
-  this->S |= ((data & (1 << 7)) >> 7);
+  uint8_t c = (this->P & FLAGS::C);
+  this->P |= ((data & (1 << 7)) >> 7);
   data <<= 1;
   data |= c;
   setZeroAndNegativeFlags(data);
@@ -529,8 +529,8 @@ uint8_t CPU::ROL(ADDRESSING mode) {
 
 uint8_t CPU::RORAccumulator() {
   // Set Carry flag to 0th bit of the value and move carry bit into bit 7
-  uint8_t c = (this->S & FLAGS::C);
-  this->S |= (this->A & (1 << 0));
+  uint8_t c = (this->P & FLAGS::C);
+  this->P |= (this->A & (1 << 0));
   this->A >>= 1;
   this->A |= (c << 7);
   setZeroAndNegativeFlags(this->A);
@@ -541,8 +541,8 @@ uint8_t CPU::ROR(ADDRESSING mode) {
   uint16_t address = getOperandAddress(mode);
   uint8_t data = readFromMemory(address);
   // Set Carry flag to 7th bit of the value and move carry bit into bit 7
-  uint8_t c = (this->S & FLAGS::C);
-  this->S |= (data & (1 << 0));
+  uint8_t c = (this->P & FLAGS::C);
+  this->P |= (data & (1 << 0));
   data >>= 1;
   data |= (c << 7);
   setZeroAndNegativeFlags(data);
@@ -557,7 +557,7 @@ uint8_t CPU::RTI() {
   status |= (~FLAGS::U);
   uint16_t lo = popFromStack();
   uint16_t hi = popFromStack();
-  this->S = status;
+  this->P = status;
   this->PC = ((hi << 8) | lo);
   return 0;
 }
@@ -575,23 +575,23 @@ uint8_t CPU::SBC(ADDRESSING mode) {
   uint8_t data = readFromMemory(address);
 
   // Calculate the effective carry: 1 if carry flag is set, 0 otherwise
-  uint8_t carry = (this->S & FLAGS::C) ? 0 : 1;
+  uint8_t carry = (this->P & FLAGS::C) ? 0 : 1;
 
   // Perform subtraction using two's complement arithmetic
   uint16_t result = this->A - data - carry;
 
   // Update Carry Flag (set if result >= 0)
   if (result <= 0xFF) {
-    this->S |= FLAGS::C;
+    this->P |= FLAGS::C;
   } else {
-    this->S &= ~FLAGS::C;
+    this->P &= ~FLAGS::C;
   }
 
   // Update Overflow Flag (set if signed overflow occurs)
   if (((this->A ^ data) & 0x80) && ((this->A ^ result) & 0x80)) {
-    this->S |= FLAGS::V;
+    this->P |= FLAGS::V;
   } else {
-    this->S &= ~FLAGS::V;
+    this->P &= ~FLAGS::V;
   }
 
   // Update Accumulator and Flags
@@ -625,17 +625,17 @@ uint8_t CPU::SBC(ADDRESSING mode) {
 }
 
 uint8_t CPU::SEC() {
-  this->S |= FLAGS::C;
+  this->P |= FLAGS::C;
   return 0;
 }
 
 uint8_t CPU::SED() {
-  this->S |= FLAGS::D;
+  this->P |= FLAGS::D;
   return 0;
 }
 
 uint8_t CPU::SEI() {
-  this->S |= FLAGS::I;
+  this->P |= FLAGS::I;
   return 0;
 }
 
@@ -809,15 +809,15 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
       break;
     // BCC
     case 0x90:
-      branch(!(this->S & FLAGS::C));
+      branch(!(this->P & FLAGS::C));
       break;
     // BCS
     case 0xB0:
-      branch((this->S & FLAGS::C));
+      branch((this->P & FLAGS::C));
       break;
     // BEQ
     case 0xF0:
-      branch((this->S & FLAGS::Z));
+      branch((this->P & FLAGS::Z));
       break;
     // BIT
     case 0x24:
@@ -826,39 +826,39 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
       break;
     // BMI
     case 0x30:
-      branch((this->S & FLAGS::N));
+      branch((this->P & FLAGS::N));
       break;
     // BNE
     case 0xD0:
-      branch(!(this->S & FLAGS::Z));
+      branch(!(this->P & FLAGS::Z));
       break;
     // BPL
     case 0x10:
-      branch(!(this->S & FLAGS::N));
+      branch(!(this->P & FLAGS::N));
       break;
     // BVC
     case 0x50:
-      branch(!(this->S & FLAGS::V));
+      branch(!(this->P & FLAGS::V));
       break;
     // BVS
     case 0x70:
-      branch((this->S & FLAGS::V));
+      branch((this->P & FLAGS::V));
       break;
     // CLC
     case 0x18:
-      this->S &= (~FLAGS::C);
+      this->P &= (~FLAGS::C);
       break;
     // CLD
     case 0xD8:
-      this->S &= (~FLAGS::D);
+      this->P &= (~FLAGS::D);
       break;
     // CLI
     case 0x58:
-      this->S &= (~FLAGS::I);
+      this->P &= (~FLAGS::I);
       break;
     // CLV
     case 0xB8:
-      this->S &= (~FLAGS::V);
+      this->P &= (~FLAGS::V);
       break;
     // CMP
     case 0xC9:
@@ -1069,34 +1069,34 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
 uint16_t CPU::getAbsoluteAddress(ADDRESSING mode, uint16_t address) {
   switch (mode) {
   case ZeroPage:
-    return static_cast<uint16_t>(readFromMemory(this->PC));
+    return static_cast<uint16_t>(readFromMemory(address));
   case ZeroPage_X:
     return static_cast<uint16_t>(
-        static_cast<uint8_t>(readFromMemory(this->PC) + this->X));
+        static_cast<uint8_t>(readFromMemory(address) + this->X));
   case ZeroPage_Y:
     return static_cast<uint16_t>(
-        static_cast<uint8_t>(readFromMemory(this->PC) + this->Y));
+        static_cast<uint8_t>(readFromMemory(address) + this->Y));
   case Absolute:
-    return readShortFromMemory(this->PC);
+    return readShortFromMemory(address);
   case Absolute_X:
-    return static_cast<uint16_t>(readShortFromMemory(this->PC) + this->X);
+    return static_cast<uint16_t>(readShortFromMemory(address) + this->X);
   case Absolute_Y:
-    return static_cast<uint16_t>(readShortFromMemory(this->PC) + this->Y);
+    return static_cast<uint16_t>(readShortFromMemory(address) + this->Y);
   case Indirect_X: {
-    uint8_t base = readFromMemory(this->PC);
+    uint8_t base = readFromMemory(address);
     uint8_t pointer = static_cast<uint8_t>(base + this->X);
     uint16_t lo = readFromMemory(pointer);
     uint16_t high = readFromMemory(static_cast<uint8_t>(pointer + 1));
     return ((high << 8) | lo);
   }
   case Indirect_Y: {
-    uint8_t pointer = readFromMemory(this->PC);
+    uint8_t pointer = readFromMemory(address);
     uint16_t lo = readFromMemory(pointer);
     uint16_t high = readFromMemory(static_cast<uint8_t>(pointer + 1));
     return static_cast<uint16_t>(((high << 8) | lo) + this->Y);
   }
   case Indirect: {
-    uint16_t pointer = readShortFromMemory(this->PC);
+    uint16_t pointer = readShortFromMemory(address);
     uint16_t lo, hi;
     if ((pointer & 0x00FF) == 0x00FF) {
       lo = readFromMemory(pointer);
@@ -1128,9 +1128,9 @@ uint16_t CPU::getOperandAddress(ADDRESSING mode) {
 void CPU::reset() {
   this->PC = readShortFromMemory(0xFFFC);
   this->SP = 0xFD;
-  this->S = 0;
-  this->S |= FLAGS::U;
-  this->S |= FLAGS::B;
+  this->P = 0;
+  this->P |= FLAGS::U;
+  this->P |= FLAGS::B;
   this->A = 0;
   this->X = 0;
 }
