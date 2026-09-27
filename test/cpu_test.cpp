@@ -169,10 +169,229 @@ protected:
     }
   }
 
+  void verifyBIT(const std::vector<uint8_t>& program, uint16_t address) {
+    struct Case {
+      uint8_t accumulator;
+      uint8_t operand;
+      uint8_t flags;
+    };
+    const Case cases[] = {
+        {0xFF, 0x80, CPU::FLAGS::N},
+        {0xFF, 0x40, CPU::FLAGS::V},
+        {0xFF, 0xC0, CPU::FLAGS::N | CPU::FLAGS::V},
+        {0xFF, 0x00, CPU::FLAGS::Z},
+        {0x00, 0xC0, CPU::FLAGS::N | CPU::FLAGS::V | CPU::FLAGS::Z},
+        {0x01, 0x02, CPU::FLAGS::Z},
+        {0x03, 0x02, 0},
+    };
+    for (const auto& test : cases) {
+      for (bool flagsInitiallySet : {false, true}) {
+        SCOPED_TRACE(::testing::Message()
+                     << "A=" << static_cast<int>(test.accumulator)
+                     << ", operand=" << static_cast<int>(test.operand)
+                     << ", flagsInitiallySet=" << flagsInitiallySet);
+        CPU cpu = createSystem(program);
+        cpu.reset();
+        cpu.A = test.accumulator;
+        cpu.X = 0x35;
+        cpu.Y = 0x57;
+        // Account for the terminating BRK setting B.
+        uint8_t preservedFlags = CPU::FLAGS::B | CPU::FLAGS::U;
+        if (flagsInitiallySet) {
+          preservedFlags |= CPU::FLAGS::C | CPU::FLAGS::I | CPU::FLAGS::D;
+        }
+        cpu.P = preservedFlags;
+        if (flagsInitiallySet) {
+          cpu.P |= CPU::FLAGS::N | CPU::FLAGS::V | CPU::FLAGS::Z;
+        }
+        const uint8_t initialSP = cpu.SP;
+        cpu.writeToMemory(address, test.operand);
+
+        cpu.interpret();
+
+        EXPECT_EQ(cpu.P, preservedFlags | test.flags);
+        EXPECT_EQ(cpu.A, test.accumulator);
+        EXPECT_EQ(cpu.X, 0x35);
+        EXPECT_EQ(cpu.Y, 0x57);
+        EXPECT_EQ(cpu.SP, initialSP);
+        EXPECT_EQ(cpu.readFromMemory(address), test.operand);
+        EXPECT_EQ(cpu.PC, 0x8000 + program.size());
+      }
+    }
+  }
+
   //void SetUp() override {
   //  cpu.P = 0; // Clear the flags before each test
   //}
 };
+
+TEST_F(CPUTest, TestStepBranchesTakenAndUntaken) {
+  struct BranchCase {
+    uint8_t opcode;
+    uint8_t flag;
+    bool branchWhenSet;
+  };
+  const BranchCase branches[] = {
+      {0x90, CPU::FLAGS::C, false}, {0xB0, CPU::FLAGS::C, true},
+      {0xF0, CPU::FLAGS::Z, true},  {0xD0, CPU::FLAGS::Z, false},
+      {0x30, CPU::FLAGS::N, true},  {0x10, CPU::FLAGS::N, false},
+      {0x50, CPU::FLAGS::V, false}, {0x70, CPU::FLAGS::V, true},
+  };
+  struct OffsetCase {
+    uint8_t operand;
+    uint16_t destination;
+  };
+  const OffsetCase offsets[] = {
+      {0x05, 0x8007}, // Forward, relative to the end of the instruction.
+      {0x00, 0x8002}, // Taken with no displacement.
+      {0xFF, 0x8001}, // Destination equals PC just after opcode fetch.
+      {0xFE, 0x8000}, // Backward branch to itself.
+      {0x80, 0x7F82}, // Largest negative displacement, across a page.
+      {0x7F, 0x8081}, // Largest positive displacement.
+  };
+  for (const auto& branch : branches) {
+    for (const auto& offset : offsets) {
+      for (bool taken : {false, true}) {
+        SCOPED_TRACE(::testing::Message()
+                     << "opcode=" << static_cast<int>(branch.opcode)
+                     << ", offset=" << static_cast<int>(offset.operand)
+                     << ", taken=" << taken);
+        CPU cpu = createSystem({branch.opcode, offset.operand, 0x00});
+        cpu.reset();
+        cpu.P = CPU::FLAGS::U;
+        if (taken == branch.branchWhenSet) {
+          cpu.P |= branch.flag;
+        }
+        cpu.A = 0x35;
+        cpu.X = 0x57;
+        cpu.Y = 0x79;
+        const uint8_t initialStatus = cpu.P;
+        const uint8_t initialSP = cpu.SP;
+
+        ASSERT_TRUE(cpu.step());
+
+        EXPECT_EQ(cpu.PC, taken ? offset.destination : 0x8002);
+        EXPECT_EQ(cpu.P, initialStatus);
+        EXPECT_EQ(cpu.A, 0x35);
+        EXPECT_EQ(cpu.X, 0x57);
+        EXPECT_EQ(cpu.Y, 0x79);
+        EXPECT_EQ(cpu.SP, initialSP);
+      }
+    }
+  }
+}
+
+TEST_F(CPUTest, TestStepJMPToOperandAddress) {
+  CPU cpu = createSystem({0x4C, 0x01, 0x80}); // JMP $8001
+  cpu.reset();
+
+  ASSERT_TRUE(cpu.step());
+
+  EXPECT_EQ(cpu.PC, 0x8001); // Must not add two operand bytes to the target.
+}
+
+TEST_F(CPUTest, TestStepIndirectJMPToOperandAddress) {
+  CPU cpu = createSystem({0x6C, 0x42, 0x00}); // JMP ($0042)
+  cpu.reset();
+  cpu.writeToMemory(0x0042, 0x01);
+  cpu.writeToMemory(0x0043, 0x80);
+
+  ASSERT_TRUE(cpu.step());
+
+  EXPECT_EQ(cpu.PC, 0x8001);
+}
+
+TEST_F(CPUTest, TestStepConsumesOneInstructionAtATime) {
+  CPU cpu = createSystem({0xEA,              // NOP: one byte
+                          0xA9, 0x42,        // LDA #$42: two bytes
+                          0x8D, 0x23, 0x01,  // STA $0123: three bytes
+                          0x00});            // Current BRK test-stop behavior
+  cpu.reset();
+
+  ASSERT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.PC, 0x8001);
+  EXPECT_EQ(cpu.A, 0x00);
+  ASSERT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.PC, 0x8003);
+  EXPECT_EQ(cpu.A, 0x42);
+  EXPECT_EQ(cpu.readFromMemory(0x0123), 0x00);
+  ASSERT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.PC, 0x8006);
+  EXPECT_EQ(cpu.readFromMemory(0x0123), 0x42);
+  EXPECT_FALSE(cpu.step());
+  EXPECT_EQ(cpu.PC, 0x8007);
+}
+
+TEST_F(CPUTest, TestBITZeroPageFlagsAndPreservedState) {
+  verifyBIT({0x24, 0x42, 0x00}, 0x0042);
+}
+
+TEST_F(CPUTest, TestBITAbsoluteFlagsAndPreservedState) {
+  verifyBIT({0x2C, 0x23, 0x01, 0x00}, 0x0123);
+}
+
+TEST_F(CPUTest, TestRTIRestoresStatusPCAndStackPointer) {
+  // Exercise every stacked status value, including B/U normalization, and
+  // stack reads wrapping from $01FF to $0100.
+  for (uint8_t initialSP : {0xFC, 0xFE, 0xFF}) {
+    for (int status = 0; status <= 0xFF; ++status) {
+      SCOPED_TRACE(::testing::Message()
+                   << "SP=" << static_cast<int>(initialSP)
+                   << ", stacked status=" << status);
+      CPU cpu = createSystem({0x40, 0x00});
+      cpu.reset();
+      cpu.SP = initialSP;
+      cpu.P = static_cast<uint8_t>(~status);
+      cpu.A = 0x35;
+      cpu.X = 0x57;
+      cpu.Y = 0x79;
+      const uint16_t statusAddress = 0x0100 + static_cast<uint8_t>(initialSP + 1);
+      const uint16_t lowAddress = 0x0100 + static_cast<uint8_t>(initialSP + 2);
+      const uint16_t highAddress = 0x0100 + static_cast<uint8_t>(initialSP + 3);
+      // Populate the stack directly so a push bug cannot conceal a pull bug.
+      cpu.writeToMemory(statusAddress, static_cast<uint8_t>(status));
+      cpu.writeToMemory(lowAddress, 0x34);
+      cpu.writeToMemory(highAddress, 0x92);
+
+      cpu.RTI();
+
+      EXPECT_EQ(cpu.P, (status & ~CPU::FLAGS::B) | CPU::FLAGS::U);
+      EXPECT_EQ(cpu.PC, 0x9234); // RTI must not add one, unlike RTS.
+      EXPECT_EQ(cpu.SP, static_cast<uint8_t>(initialSP + 3));
+      EXPECT_EQ(cpu.A, 0x35);
+      EXPECT_EQ(cpu.X, 0x57);
+      EXPECT_EQ(cpu.Y, 0x79);
+      EXPECT_EQ(cpu.readFromMemory(statusAddress), status);
+      EXPECT_EQ(cpu.readFromMemory(lowAddress), 0x34);
+      EXPECT_EQ(cpu.readFromMemory(highAddress), 0x92);
+    }
+  }
+}
+
+TEST_F(CPUTest, TestRTIOpcodeResumesAtStackedPC) {
+  CPU cpu = createSystem({0x40, 0x00});
+  cpu.reset();
+  cpu.SP = 0xFA;
+  cpu.writeToMemory(0x01FB, CPU::FLAGS::C | CPU::FLAGS::B);
+  cpu.writeToMemory(0x01FC, 0x34);
+  cpu.writeToMemory(0x01FD, 0x92);
+  int instructions = 0;
+
+  cpu.interpretWithCB([&](CPU* state) {
+    if (++instructions > 2) {
+      throw std::runtime_error("RTI did not reach the terminating BRK");
+    }
+    if (instructions == 2) {
+      // Inspect before BRK changes B or advances PC.
+      EXPECT_EQ(state->PC, 0x9234);
+      EXPECT_EQ(state->P, CPU::FLAGS::C | CPU::FLAGS::U);
+      EXPECT_EQ(state->SP, 0xFD);
+    }
+  });
+
+  EXPECT_EQ(instructions, 2);
+  EXPECT_EQ(cpu.PC, 0x9235);
+}
 
 TEST_F(CPUTest, TestROLAccumulatorCarryAndFlags) {
   verifyRotate(true, true);

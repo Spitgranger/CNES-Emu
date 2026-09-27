@@ -337,9 +337,10 @@ uint8_t CPU::ASLAccumulator() {
 }
 
 void CPU::branch(bool condition) {
+  int8_t offset = static_cast<int8_t>(readFromMemory(this->PC));
+  this->PC++;
   if (condition) {
-    int8_t offset = static_cast<int8_t>(readFromMemory(this->PC));
-    uint16_t newAddress = this->PC + 1 + static_cast<uint16_t>(offset);
+    uint16_t newAddress = this->PC + static_cast<uint16_t>(offset);
     this->PC = newAddress & 0xFFFF;
   }
 }
@@ -360,7 +361,7 @@ uint8_t CPU::BIT(ADDRESSING mode) {
     this->P &= ~(FLAGS::N);
   }
 
-  if (operand >> 6) {
+  if (operand & 0x40) {
     this->P |= FLAGS::V;
   } else {
     this->P &= ~(FLAGS::V);
@@ -751,19 +752,14 @@ uint8_t CPU::popFromStack() {
 
 void CPU::interpret() { interpretWithCB(nullptr); }
 
-void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
-  for (;;) {
-    if (callback != nullptr) {
-      callback(this);
-    }
+bool CPU::step() {
     uint8_t opcode = readFromMemory(this->PC);
     this->PC++;
-    uint16_t prevProgCounter = this->PC;
     switch (opcode) {
     // BRK
     case 0x00:
       BRK();
-      return;
+      return false;
     case 0xA0:
     case 0xA4:
     case 0xB4:
@@ -835,15 +831,15 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     // BCC
     case 0x90:
       branch(!(this->P & FLAGS::C));
-      break;
+      return true;
     // BCS
     case 0xB0:
       branch((this->P & FLAGS::C));
-      break;
+      return true;
     // BEQ
     case 0xF0:
       branch((this->P & FLAGS::Z));
-      break;
+      return true;
     // BIT
     case 0x24:
     case 0x2C:
@@ -852,23 +848,23 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     // BMI
     case 0x30:
       branch((this->P & FLAGS::N));
-      break;
+      return true;
     // BNE
     case 0xD0:
       branch(!(this->P & FLAGS::Z));
-      break;
+      return true;
     // BPL
     case 0x10:
       branch(!(this->P & FLAGS::N));
-      break;
+      return true;
     // BVC
     case 0x50:
       branch(!(this->P & FLAGS::V));
-      break;
+      return true;
     // BVS
     case 0x70:
       branch((this->P & FLAGS::V));
-      break;
+      return true;
     // CLC
     case 0x18:
       this->P &= (~FLAGS::C);
@@ -949,11 +945,11 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     case 0x4C:
     case 0x6C:
       JMP(lookupTable[opcode].mode);
-      break;
+      return true;
     // JSR
     case 0x20:
       JSR(lookupTable[opcode].mode);
-      break;
+      return true;
     // LDX
     case 0xA2:
     case 0xA6:
@@ -1025,10 +1021,10 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
     // RTI
     case 0x40:
       RTI();
-      break;
+      return true;
     case 0x60:
       RTS();
-      break;
+      return true;
     // SBC
     case 0xE9:
     case 0xE5:
@@ -1085,9 +1081,23 @@ void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
       TYA();
       break;
     }
-    if (this->PC == prevProgCounter) {
-      this->PC += (lookupTable[opcode].bytes - 1);
+    this->PC += (lookupTable[opcode].bytes - 1);
+    return true;
+}
+
+void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
+
+  uint32_t limit = 3000;
+  uint32_t i = 0;
+  while (i < limit) {
+    if (callback != nullptr) {
+      callback(this);
     }
+    //uint16_t prevProgCounter = this->PC;
+    if (!step()) {
+      break;
+    }
+    i++;
   }
 }
 
