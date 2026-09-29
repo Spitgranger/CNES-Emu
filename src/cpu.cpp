@@ -215,6 +215,14 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xE2, "DOP", 2, 2, ADDRESSING::Immediate},
     {0xF4, "DOP", 2, 4, ADDRESSING::ZeroPage_X},
 
+    {0x0C, "TOP", 3, 4, ADDRESSING::Absolute},
+    {0x1C, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
+    {0x3C, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
+    {0x5C, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
+    {0x7C, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
+    {0xDC, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
+    {0xFC, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
+
 };
 
 CPU::CPU(Bus bus) : bus(bus) {
@@ -732,6 +740,12 @@ uint8_t CPU::DOP(ADDRESSING mode) {
     return 0;
 }
 
+uint8_t CPU::TOP(ADDRESSING mode) {
+    uint16_t address = getOperandAddress(mode);
+    uint8_t data = readFromMemory(address);
+    return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) {
   return this->bus.readFromMemory(address);
 }
@@ -1131,6 +1145,16 @@ bool CPU::step() {
     case 0xE2:
     case 0xF4:
       DOP(instruction.mode);
+      break;
+    // TOP
+    case 0x0C:
+    case 0x1C:
+    case 0x3C:
+    case 0x5C:
+    case 0x7C:
+    case 0xDC:
+    case 0xFC:
+      TOP(instruction.mode);
       break;
     default:
       std::ostringstream oss;

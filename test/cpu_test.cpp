@@ -446,6 +446,15 @@ TEST_F(CPUTest, TESTDOP) {
   EXPECT_EQ(cpu.PC, 0x8005);
 }
 
+TEST_F(CPUTest, TESTTOP) {
+  std::vector<uint8_t> program = {0x0C, 0x01, 0xFA, 0x1C, 0x14, 0x10, 0x00};
+  //cpu.loadProgramAndRun(program, 3);
+  CPU cpu = createSystem(program);
+  cpu.reset();
+  cpu.interpret();
+  EXPECT_EQ(cpu.PC, 0x8007);
+}
+
 TEST_F(CPUTest, TestLDA) {
   std::vector<uint8_t> program = {0xA9, 0x05, 0x00};
   //cpu.loadProgramAndRun(program, 3);
