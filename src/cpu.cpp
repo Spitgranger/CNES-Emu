@@ -1,6 +1,8 @@
 #include "cpu.hpp"
 #include <cstring>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
 
 #define TOP_OF_STACK 0xFF
 
@@ -190,10 +192,29 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x85, "STA", 2, 3, ADDRESSING::ZeroPage},
     {0x95, "STA", 2, 4, ADDRESSING::ZeroPage_X},
     {0x8D, "STA", 3, 4, ADDRESSING::Absolute},
-    {0x9D, "STA", 2, 5, ADDRESSING::Absolute_X},
-    {0x99, "STA", 2, 5, ADDRESSING::Absolute_Y},
+    {0x9D, "STA", 3, 5, ADDRESSING::Absolute_X},
+    {0x99, "STA", 3, 5, ADDRESSING::Absolute_Y},
     {0x81, "STA", 2, 6, ADDRESSING::Indirect_X},
     {0x91, "STA", 2, 6, ADDRESSING::Indirect_Y},
+    // Unofficial opcodes
+    {0x0B, "AAC", 2, 2, ADDRESSING::Immediate},
+    {0x2B, "AAC", 2, 2, ADDRESSING::Immediate},
+
+    {0x04, "DOP", 2, 2, ADDRESSING::ZeroPage},
+    {0x14, "DOP", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x34, "DOP", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x44, "DOP", 2, 3, ADDRESSING::ZeroPage},
+    {0x54, "DOP", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x64, "DOP", 2, 3, ADDRESSING::ZeroPage},
+    {0x74, "DOP", 2, 4, ADDRESSING::ZeroPage_X},
+    {0x80, "DOP", 2, 2, ADDRESSING::Immediate},
+    {0x82, "DOP", 2, 2, ADDRESSING::Immediate},
+    {0x89, "DOP", 2, 2, ADDRESSING::Immediate},
+    {0xC2, "DOP", 2, 2, ADDRESSING::Immediate},
+    {0xD4, "DOP", 2, 4, ADDRESSING::ZeroPage_X},
+    {0xE2, "DOP", 2, 2, ADDRESSING::Immediate},
+    {0xF4, "DOP", 2, 4, ADDRESSING::ZeroPage_X},
+
 };
 
 CPU::CPU(Bus bus) : bus(bus) {
@@ -705,6 +726,12 @@ uint8_t CPU::TYA() {
   return 0;
 }
 
+uint8_t CPU::DOP(ADDRESSING mode) {
+    uint16_t address = getOperandAddress(mode);
+    uint8_t data = readFromMemory(address);
+    return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) {
   return this->bus.readFromMemory(address);
 }
@@ -754,7 +781,15 @@ void CPU::interpret() { interpretWithCB(nullptr); }
 
 bool CPU::step() {
     uint8_t opcode = readFromMemory(this->PC);
+    uint16_t originalPc = this->PC;
     this->PC++;
+    auto it = lookupTable.find(opcode);
+    if (it == lookupTable.end()) {
+      std::ostringstream oss;
+      oss << "Opcode 0x" << std::hex << static_cast<unsigned>(opcode) << " at 0x" << originalPc << " not found";
+      throw std::runtime_error(oss.str());
+    }
+    const instruction& instruction = it->second;
     switch (opcode) {
     // BRK
     case 0x00:
@@ -765,7 +800,7 @@ bool CPU::step() {
     case 0xB4:
     case 0xAC:
     case 0xBC:
-      LDY(lookupTable[opcode].mode);
+      LDY(instruction.mode);
       break;
     // LDA
     case 0xA9:
@@ -776,7 +811,7 @@ bool CPU::step() {
     case 0xB9:
     case 0xA1:
     case 0xB1:
-      LDA(lookupTable[opcode].mode);
+      LDA(instruction.mode);
       break;
     // TAX
     case 0xAA:
@@ -794,7 +829,7 @@ bool CPU::step() {
     case 0x99:
     case 0x81:
     case 0x91:
-      STA(lookupTable[opcode].mode);
+      STA(instruction.mode);
       break;
     // ADC
     case 0x69:
@@ -805,7 +840,7 @@ bool CPU::step() {
     case 0x79:
     case 0x61:
     case 0x71:
-      ADC(lookupTable[opcode].mode);
+      ADC(instruction.mode);
       break;
     // AND
     case 0x29:
@@ -816,7 +851,7 @@ bool CPU::step() {
     case 0x39:
     case 0x21:
     case 0x31:
-      AND(lookupTable[opcode].mode);
+      AND(instruction.mode);
       break;
     // ASL
     case 0x0A:
@@ -826,7 +861,7 @@ bool CPU::step() {
     case 0x16:
     case 0x0E:
     case 0x1E:
-      ASL(lookupTable[opcode].mode);
+      ASL(instruction.mode);
       break;
     // BCC
     case 0x90:
@@ -843,7 +878,7 @@ bool CPU::step() {
     // BIT
     case 0x24:
     case 0x2C:
-      BIT(lookupTable[opcode].mode);
+      BIT(instruction.mode);
       break;
     // BMI
     case 0x30:
@@ -890,26 +925,26 @@ bool CPU::step() {
     case 0xD9:
     case 0xC1:
     case 0xD1:
-      compare(lookupTable[opcode].mode, this->A);
+      compare(instruction.mode, this->A);
       break;
     // CPX
     case 0xE0:
     case 0xE4:
     case 0xEC:
-      compare(lookupTable[opcode].mode, this->X);
+      compare(instruction.mode, this->X);
       break;
     // CPY
     case 0xC0:
     case 0xC4:
     case 0xCC:
-      compare(lookupTable[opcode].mode, this->Y);
+      compare(instruction.mode, this->Y);
       break;
     // DEC
     case 0xC6:
     case 0xD6:
     case 0xCE:
     case 0xDE:
-      DEC(lookupTable[opcode].mode);
+      DEC(instruction.mode);
       break;
     // DEX
     case 0xCA:
@@ -928,14 +963,14 @@ bool CPU::step() {
     case 0x59:
     case 0x41:
     case 0x51:
-      EOR(lookupTable[opcode].mode);
+      EOR(instruction.mode);
       break;
     // INC
     case 0xE6:
     case 0xF6:
     case 0xEE:
     case 0xFE:
-      INC(lookupTable[opcode].mode);
+      INC(instruction.mode);
       break;
     // INY
     case 0xC8:
@@ -944,11 +979,11 @@ bool CPU::step() {
     // JMP
     case 0x4C:
     case 0x6C:
-      JMP(lookupTable[opcode].mode);
+      JMP(instruction.mode);
       return true;
     // JSR
     case 0x20:
-      JSR(lookupTable[opcode].mode);
+      JSR(instruction.mode);
       return true;
     // LDX
     case 0xA2:
@@ -956,7 +991,7 @@ bool CPU::step() {
     case 0xB6:
     case 0xAE:
     case 0xBE:
-      LDX(lookupTable[opcode].mode);
+      LDX(instruction.mode);
       break;
     // LSR
     case 0x4A:
@@ -966,7 +1001,7 @@ bool CPU::step() {
     case 0x56:
     case 0x4E:
     case 0x5E:
-      LSR(lookupTable[opcode].mode);
+      LSR(instruction.mode);
       break;
     // NOP
     case 0xEA:
@@ -980,7 +1015,7 @@ bool CPU::step() {
     case 0x19:
     case 0x01:
     case 0x11:
-      ORA(lookupTable[opcode].mode);
+      ORA(instruction.mode);
       break;
     // PHA
     case 0x48:
@@ -1006,7 +1041,7 @@ bool CPU::step() {
     case 0x36:
     case 0x2E:
     case 0x3E:
-      ROL(lookupTable[opcode].mode);
+      ROL(instruction.mode);
       break;
     // ROR
     case 0x6A:
@@ -1016,7 +1051,7 @@ bool CPU::step() {
     case 0x76:
     case 0x6E:
     case 0x7E:
-      ROR(lookupTable[opcode].mode);
+      ROR(instruction.mode);
       break;
     // RTI
     case 0x40:
@@ -1034,7 +1069,7 @@ bool CPU::step() {
     case 0xF9:
     case 0xE1:
     case 0xF1:
-      SBC(lookupTable[opcode].mode);
+      SBC(instruction.mode);
       break;
     // SEC
     case 0x38:
@@ -1052,13 +1087,13 @@ bool CPU::step() {
     case 0x86:
     case 0x96:
     case 0x8E:
-      STX(lookupTable[opcode].mode);
+      STX(instruction.mode);
       break;
     // STY
     case 0x84:
     case 0x94:
     case 0x8C:
-      STY(lookupTable[opcode].mode);
+      STY(instruction.mode);
       break;
     // TAY
     case 0xA8:
@@ -1080,20 +1115,40 @@ bool CPU::step() {
     case 0x98:
       TYA();
       break;
+    // DOP
+    case 0x04:
+    case 0x14:
+    case 0x34:
+    case 0x44:
+    case 0x54:
+    case 0x64:
+    case 0x74:
+    case 0x80:
+    case 0x82:
+    case 0x89:
+    case 0xC2:
+    case 0xD4:
+    case 0xE2:
+    case 0xF4:
+      DOP(instruction.mode);
+      break;
+    default:
+      std::ostringstream oss;
+      oss << "Opcode 0x" << std::hex << static_cast<unsigned>(opcode) << " at " << std::hex << originalPc << " not found";
+      throw std::runtime_error(oss.str());
     }
-    this->PC += (lookupTable[opcode].bytes - 1);
+    this->PC += (instruction.bytes - 1);
     return true;
 }
 
 void CPU::interpretWithCB(const std::function<void(CPU *)> &callback) {
 
-  uint32_t limit = 3000;
+  uint32_t limit = 100000;
   uint32_t i = 0;
   while (i < limit) {
     if (callback != nullptr) {
       callback(this);
     }
-    //uint16_t prevProgCounter = this->PC;
     if (!step()) {
       break;
     }

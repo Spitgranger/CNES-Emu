@@ -437,6 +437,15 @@ TEST_F(CPUTest, TestLDYAbsoluteXCrossesPage) {
   verifyLDY({0xBC, 0xFF, 0x01, 0x00}, 0x0201, 0x02);
 }
 
+TEST_F(CPUTest, TESTDOP) {
+  std::vector<uint8_t> program = {0x04, 0x50, 0x14, 0x10, 0x00};
+  //cpu.loadProgramAndRun(program, 3);
+  CPU cpu = createSystem(program);
+  cpu.reset();
+  cpu.interpret();
+  EXPECT_EQ(cpu.PC, 0x8005);
+}
+
 TEST_F(CPUTest, TestLDA) {
   std::vector<uint8_t> program = {0xA9, 0x05, 0x00};
   //cpu.loadProgramAndRun(program, 3);
