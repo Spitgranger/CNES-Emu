@@ -223,6 +223,13 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xDC, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
     {0xFC, "TOP", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_X},
 
+    {0x1A, "NOP", 1, 2, ADDRESSING::NoneAddressing},
+    {0x3A, "NOP", 1, 2, ADDRESSING::NoneAddressing},
+    {0x5A, "NOP", 1, 2, ADDRESSING::NoneAddressing},
+    {0x7A, "NOP", 1, 2, ADDRESSING::NoneAddressing},
+    {0xDA, "NOP", 1, 2, ADDRESSING::NoneAddressing},
+    {0xFA, "NOP", 1, 2, ADDRESSING::NoneAddressing},
+
 };
 
 CPU::CPU(Bus bus) : bus(bus) {
@@ -1019,6 +1026,12 @@ bool CPU::step() {
       break;
     // NOP
     case 0xEA:
+    case 0x1A:
+    case 0x3A:
+    case 0x5A:
+    case 0x7A:
+    case 0xDA:
+    case 0xFA:
       break;
     // ORA
     case 0x09:
