@@ -230,6 +230,13 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0xDA, "NOP", 1, 2, ADDRESSING::NoneAddressing},
     {0xFA, "NOP", 1, 2, ADDRESSING::NoneAddressing},
 
+    {0xA7, "LAX", 2, 3, ADDRESSING::ZeroPage},
+    {0xB7, "LAX", 2, 4, ADDRESSING::ZeroPage_Y},
+    {0xAF, "LAX", 3, 4, ADDRESSING::Absolute},
+    {0xBF, "LAX", 3, 4 /** +1 if page crossed **/, ADDRESSING::Absolute_Y},
+    {0xA3, "LAX", 2, 6, ADDRESSING::Indirect_X},
+    {0xB3, "LAX", 2, 5 /** +1 if page crossed **/, ADDRESSING::Indirect_Y},
+
 };
 
 CPU::CPU(Bus bus) : bus(bus) {
@@ -753,6 +760,15 @@ uint8_t CPU::TOP(ADDRESSING mode) {
     return 0;
 }
 
+uint8_t CPU::LAX(ADDRESSING mode) {
+    uint16_t address = getOperandAddress(mode);
+    uint8_t data = readFromMemory(address);
+    this->A = data;
+    this->X = data;
+    setZeroAndNegativeFlags(this->A);
+    return 0;
+}
+
 uint8_t CPU::readFromMemory(uint16_t address) {
   return this->bus.readFromMemory(address);
 }
@@ -1168,6 +1184,15 @@ bool CPU::step() {
     case 0xDC:
     case 0xFC:
       TOP(instruction.mode);
+      break;
+    // LAX
+    case 0xA7:
+    case 0xB7:
+    case 0xAF:
+    case 0xBF:
+    case 0xA3:
+    case 0xB3:
+      LAX(instruction.mode);
       break;
     default:
       std::ostringstream oss;

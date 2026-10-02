@@ -92,6 +92,7 @@ public:
   uint8_t TYA();
   uint8_t DOP(ADDRESSING mode);
   uint8_t TOP(ADDRESSING mode);
+  uint8_t LAX(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
