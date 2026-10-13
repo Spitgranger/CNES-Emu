@@ -1,11 +1,10 @@
 #pragma once
 #include "bus.hpp"
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <functional>
-
 
 class CPU {
 public:
@@ -93,6 +92,7 @@ public:
   uint8_t DOP(ADDRESSING mode);
   uint8_t TOP(ADDRESSING mode);
   uint8_t LAX(ADDRESSING mode);
+  uint8_t SAX(ADDRESSING mode);
 
   // Memory Access
   uint8_t readFromMemory(uint16_t address);
@@ -105,7 +105,7 @@ public:
 
   // This method is for testing, receives programs as a seperate input stream
   void interpret();
-  void interpretWithCB(const std::function<void(CPU*)> &callback);
+  void interpretWithCB(const std::function<void(CPU *)> &callback);
   bool step();
 
   // CPU Functional Methods
@@ -128,6 +128,7 @@ public:
   static std::vector<instruction> opcodeTable;
   std::unordered_map<uint16_t, instruction> lookupTable;
   void setZeroAndNegativeFlags(uint8_t value);
+
 private:
   Bus bus;
 };

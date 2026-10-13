@@ -220,6 +220,66 @@ protected:
     }
   }
 
+  // SAX (a.k.a. AAX) stores A & X to memory. Unlike most unofficial opcodes
+  // it affects no flags. For (Indirect,X), pass the zero-page operand as
+  // indirectBase; the pointer is written to (indirectBase + X) & 0xFF.
+  void verifySAX(const std::vector<uint8_t>& program, uint16_t address,
+                 uint8_t y = 0x57, int indirectBase = -1) {
+    struct Case {
+      uint8_t a;
+      uint8_t x;
+      uint8_t result;
+    };
+    const Case cases[] = {
+        {0xFF, 0xFF, 0xFF}, // Negative result.
+        {0xF0, 0x0F, 0x00}, // Zero result from non-zero registers.
+        {0xC3, 0xA5, 0x81}, // Mixed bits.
+        {0x5A, 0x3C, 0x18}, // Positive result.
+        {0x00, 0xFF, 0x00},
+    };
+    constexpr uint8_t allFlags = CPU::FLAGS::C | CPU::FLAGS::Z |
+                                 CPU::FLAGS::I | CPU::FLAGS::D |
+                                 CPU::FLAGS::V | CPU::FLAGS::N;
+    for (const auto& test : cases) {
+      for (bool flagsInitiallySet : {false, true}) {
+        SCOPED_TRACE(::testing::Message()
+                     << "opcode=" << static_cast<int>(program[0])
+                     << ", A=" << static_cast<int>(test.a)
+                     << ", X=" << static_cast<int>(test.x)
+                     << ", flagsInitiallySet=" << flagsInitiallySet);
+        CPU cpu = createSystem(program);
+        cpu.reset();
+        cpu.A = test.a;
+        cpu.X = test.x;
+        cpu.Y = y;
+        // Account for the terminating BRK setting B.
+        cpu.P = CPU::FLAGS::B | CPU::FLAGS::U;
+        if (flagsInitiallySet) {
+          cpu.P |= allFlags;
+        }
+        const uint8_t initialStatus = cpu.P;
+        const uint8_t initialSP = cpu.SP;
+        if (indirectBase >= 0) {
+          const auto pointer = static_cast<uint8_t>(indirectBase + test.x);
+          cpu.writeToMemory(pointer, address & 0xFF);
+          cpu.writeToMemory(static_cast<uint8_t>(pointer + 1), address >> 8);
+        }
+        // Seed with the complement so the store is observable.
+        cpu.writeToMemory(address, static_cast<uint8_t>(~test.result));
+
+        cpu.interpret();
+
+        EXPECT_EQ(cpu.readFromMemory(address), test.result);
+        EXPECT_EQ(cpu.P, initialStatus);
+        EXPECT_EQ(cpu.A, test.a);
+        EXPECT_EQ(cpu.X, test.x);
+        EXPECT_EQ(cpu.Y, y);
+        EXPECT_EQ(cpu.SP, initialSP);
+        EXPECT_EQ(cpu.PC, 0x8000 + program.size());
+      }
+    }
+  }
+
   //void SetUp() override {
   //  cpu.P = 0; // Clear the flags before each test
   //}
@@ -453,6 +513,31 @@ TEST_F(CPUTest, TESTTOP) {
   cpu.reset();
   cpu.interpret();
   EXPECT_EQ(cpu.PC, 0x8007);
+}
+
+TEST_F(CPUTest, TestSAXZeroPage) {
+  verifySAX({0x87, 0x42, 0x00}, 0x0042);
+}
+
+TEST_F(CPUTest, TestSAXZeroPageY) {
+  verifySAX({0x97, 0x40, 0x00}, 0x0045, 0x05);
+}
+
+TEST_F(CPUTest, TestSAXZeroPageYWraps) {
+  verifySAX({0x97, 0xFF, 0x00}, 0x0001, 0x02);
+}
+
+TEST_F(CPUTest, TestSAXIndirectX) {
+  verifySAX({0x83, 0x40, 0x00}, 0x0123, 0x57, 0x40);
+}
+
+TEST_F(CPUTest, TestSAXIndirectXPointerWraps) {
+  // With X=$FF the pointer sits at $FF, so its high byte comes from $00.
+  verifySAX({0x83, 0x00, 0x00}, 0x0234, 0x57, 0x00);
+}
+
+TEST_F(CPUTest, TestSAXAbsolute) {
+  verifySAX({0x8F, 0x23, 0x01, 0x00}, 0x0123);
 }
 
 TEST_F(CPUTest, TestLDA) {
