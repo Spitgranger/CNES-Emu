@@ -280,6 +280,68 @@ protected:
     }
   }
 
+  // Immediate-mode SBC. The unofficial $EB behaves identically to $E9, so
+  // both opcodes share this table.
+  void verifySBCImmediate(uint8_t opcode) {
+    struct Case {
+      uint8_t a;
+      uint8_t operand;
+      bool carryIn;
+      uint8_t result;
+      uint8_t flags; // Expected C, Z, V, and N.
+    };
+    const Case cases[] = {
+        {0x50, 0x10, true, 0x40, CPU::FLAGS::C},
+        {0x50, 0x10, false, 0x3F, CPU::FLAGS::C}, // Clear carry borrows one.
+        {0x10, 0x10, true, 0x00, CPU::FLAGS::C | CPU::FLAGS::Z},
+        {0x10, 0x20, true, 0xF0, CPU::FLAGS::N},  // Borrow clears carry.
+        {0x00, 0x01, true, 0xFF, CPU::FLAGS::N},
+        {0x00, 0x00, false, 0xFF, CPU::FLAGS::N}, // Borrow from carry alone.
+        {0xFF, 0xFF, false, 0xFF, CPU::FLAGS::N},
+        {0x80, 0x01, true, 0x7F, CPU::FLAGS::C | CPU::FLAGS::V}, // -128 - 1
+        {0x7F, 0xFF, true, 0x80, CPU::FLAGS::V | CPU::FLAGS::N}, // 127 - -1
+        {0x50, 0xB0, true, 0xA0, CPU::FLAGS::V | CPU::FLAGS::N}, // 80 - -80
+        {0xD0, 0x70, true, 0x60, CPU::FLAGS::C | CPU::FLAGS::V}, // -48 - 112
+        {0x80, 0x00, false, 0x7F, CPU::FLAGS::C | CPU::FLAGS::V},
+    };
+    for (const auto& test : cases) {
+      for (bool otherFlagsSet : {false, true}) {
+        SCOPED_TRACE(::testing::Message()
+                     << "opcode=" << static_cast<int>(opcode)
+                     << ", A=" << static_cast<int>(test.a)
+                     << ", operand=" << static_cast<int>(test.operand)
+                     << ", carryIn=" << test.carryIn
+                     << ", otherFlagsSet=" << otherFlagsSet);
+        CPU cpu = createSystem({opcode, test.operand, 0x00});
+        cpu.reset();
+        cpu.A = test.a;
+        cpu.X = 0x35;
+        cpu.Y = 0x57;
+        // Account for the terminating BRK setting B. D is included to check
+        // that the NES's 6502 ignores decimal mode.
+        uint8_t preservedFlags = CPU::FLAGS::B | CPU::FLAGS::U;
+        if (otherFlagsSet) {
+          preservedFlags |= CPU::FLAGS::I | CPU::FLAGS::D;
+        }
+        // Start Z/V/N opposite to their expected values to test both setting
+        // and clearing, independent of the incoming carry.
+        constexpr uint8_t zvn = CPU::FLAGS::Z | CPU::FLAGS::V | CPU::FLAGS::N;
+        cpu.P = preservedFlags | ((~test.flags) & zvn) |
+                (test.carryIn ? CPU::FLAGS::C : 0);
+        const uint8_t initialSP = cpu.SP;
+
+        cpu.interpret();
+
+        EXPECT_EQ(cpu.A, test.result);
+        EXPECT_EQ(cpu.P, preservedFlags | test.flags);
+        EXPECT_EQ(cpu.X, 0x35);
+        EXPECT_EQ(cpu.Y, 0x57);
+        EXPECT_EQ(cpu.SP, initialSP);
+        EXPECT_EQ(cpu.PC, 0x8003);
+      }
+    }
+  }
+
   //void SetUp() override {
   //  cpu.P = 0; // Clear the flags before each test
   //}
@@ -538,6 +600,28 @@ TEST_F(CPUTest, TestSAXIndirectXPointerWraps) {
 
 TEST_F(CPUTest, TestSAXAbsolute) {
   verifySAX({0x8F, 0x23, 0x01, 0x00}, 0x0123);
+}
+
+TEST_F(CPUTest, TestSBCImmediate) {
+  verifySBCImmediate(0xE9);
+}
+
+TEST_F(CPUTest, TestUnofficialSBCImmediate) {
+  verifySBCImmediate(0xEB);
+}
+
+TEST_F(CPUTest, TestUnofficialSBCStepConsumesTwoBytes) {
+  CPU cpu = createSystem({0xEB, 0x01, 0xEB, 0x02, 0x00});
+  cpu.reset();
+  cpu.A = 0x10;
+  cpu.P |= CPU::FLAGS::C;
+
+  ASSERT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.PC, 0x8002);
+  EXPECT_EQ(cpu.A, 0x0F);
+  ASSERT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.PC, 0x8004);
+  EXPECT_EQ(cpu.A, 0x0D);
 }
 
 TEST_F(CPUTest, TestLDA) {

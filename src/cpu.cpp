@@ -242,6 +242,9 @@ std::vector<CPU::instruction> CPU::opcodeTable = {
     {0x83, "SAX", 2, 6, ADDRESSING::Indirect_X},
     {0x8F, "SAX", 3, 4, ADDRESSING::Absolute},
 
+    // SBC
+    {0xEB, "SBC", 2, 2, ADDRESSING::Immediate},
+
 };
 
 CPU::CPU(Bus bus) : bus(bus) {
@@ -1208,6 +1211,9 @@ bool CPU::step() {
   case 0x83:
   case 0x8F:
     SAX(instruction.mode);
+    break;
+  case 0xEB:
+    SBC(instruction.mode);
     break;
   default:
     std::ostringstream oss;
