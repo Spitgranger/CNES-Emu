@@ -342,6 +342,69 @@ protected:
     }
   }
 
+  // DCP decrements memory, then compares A with the decremented value as CMP
+  // would. For indirect modes, pass where the pointer lives (pointerAt) and
+  // the address it holds (pointerValue).
+  void verifyDCP(const std::vector<uint8_t>& program, uint16_t address,
+                 uint8_t x = 0x35, uint8_t y = 0x57, int pointerAt = -1,
+                 uint16_t pointerValue = 0) {
+    struct Case {
+      uint8_t a;
+      uint8_t memory;
+      uint8_t result; // Memory after the decrement.
+      uint8_t flags;  // Expected C, Z, and N.
+    };
+    const Case cases[] = {
+        {0x40, 0x41, 0x40, CPU::FLAGS::C | CPU::FLAGS::Z}, // A == M - 1
+        {0x40, 0x11, 0x10, CPU::FLAGS::C},                 // A > M - 1
+        {0x40, 0x51, 0x50, CPU::FLAGS::N},                 // A < M - 1
+        {0x00, 0x00, 0xFF, 0},                             // Decrement wraps.
+        {0xFF, 0x00, 0xFF, CPU::FLAGS::C | CPU::FLAGS::Z},
+        {0x80, 0x01, 0x00, CPU::FLAGS::C | CPU::FLAGS::N},
+        {0x10, 0x91, 0x90, CPU::FLAGS::N},
+    };
+    for (const auto& test : cases) {
+      for (bool otherFlagsSet : {false, true}) {
+        SCOPED_TRACE(::testing::Message()
+                     << "opcode=" << static_cast<int>(program[0])
+                     << ", A=" << static_cast<int>(test.a)
+                     << ", memory=" << static_cast<int>(test.memory)
+                     << ", otherFlagsSet=" << otherFlagsSet);
+        CPU cpu = createSystem(program);
+        cpu.reset();
+        cpu.A = test.a;
+        cpu.X = x;
+        cpu.Y = y;
+        // Account for the terminating BRK setting B.
+        uint8_t preservedFlags = CPU::FLAGS::B | CPU::FLAGS::U;
+        if (otherFlagsSet) {
+          preservedFlags |= CPU::FLAGS::I | CPU::FLAGS::D | CPU::FLAGS::V;
+        }
+        // Start C/Z/N opposite to their expected values to test both setting
+        // and clearing.
+        constexpr uint8_t czn = CPU::FLAGS::C | CPU::FLAGS::Z | CPU::FLAGS::N;
+        cpu.P = preservedFlags | ((~test.flags) & czn);
+        const uint8_t initialSP = cpu.SP;
+        if (pointerAt >= 0) {
+          cpu.writeToMemory(pointerAt, pointerValue & 0xFF);
+          cpu.writeToMemory(static_cast<uint8_t>(pointerAt + 1),
+                            pointerValue >> 8);
+        }
+        cpu.writeToMemory(address, test.memory);
+
+        cpu.interpret();
+
+        EXPECT_EQ(cpu.readFromMemory(address), test.result);
+        EXPECT_EQ(cpu.P, preservedFlags | test.flags);
+        EXPECT_EQ(cpu.A, test.a);
+        EXPECT_EQ(cpu.X, x);
+        EXPECT_EQ(cpu.Y, y);
+        EXPECT_EQ(cpu.SP, initialSP);
+        EXPECT_EQ(cpu.PC, 0x8000 + program.size());
+      }
+    }
+  }
+
   //void SetUp() override {
   //  cpu.P = 0; // Clear the flags before each test
   //}
@@ -622,6 +685,58 @@ TEST_F(CPUTest, TestUnofficialSBCStepConsumesTwoBytes) {
   ASSERT_TRUE(cpu.step());
   EXPECT_EQ(cpu.PC, 0x8004);
   EXPECT_EQ(cpu.A, 0x0D);
+}
+
+TEST_F(CPUTest, TestDCPZeroPage) {
+  verifyDCP({0xC7, 0x42, 0x00}, 0x0042);
+}
+
+TEST_F(CPUTest, TestDCPZeroPageX) {
+  verifyDCP({0xD7, 0x40, 0x00}, 0x0045, 0x05);
+}
+
+TEST_F(CPUTest, TestDCPZeroPageXWraps) {
+  verifyDCP({0xD7, 0xFF, 0x00}, 0x0001, 0x02);
+}
+
+TEST_F(CPUTest, TestDCPAbsolute) {
+  verifyDCP({0xCF, 0x23, 0x01, 0x00}, 0x0123);
+}
+
+TEST_F(CPUTest, TestDCPAbsoluteX) {
+  verifyDCP({0xDF, 0x20, 0x01, 0x00}, 0x0125, 0x05);
+}
+
+TEST_F(CPUTest, TestDCPAbsoluteXCrossesPage) {
+  verifyDCP({0xDF, 0xFF, 0x01, 0x00}, 0x0201, 0x02);
+}
+
+TEST_F(CPUTest, TestDCPAbsoluteY) {
+  verifyDCP({0xDB, 0x20, 0x01, 0x00}, 0x0125, 0x35, 0x05);
+}
+
+TEST_F(CPUTest, TestDCPAbsoluteYCrossesPage) {
+  verifyDCP({0xDB, 0xFF, 0x01, 0x00}, 0x0201, 0x35, 0x02);
+}
+
+TEST_F(CPUTest, TestDCPIndirectX) {
+  // Pointer at ($40 + X) = $45.
+  verifyDCP({0xC3, 0x40, 0x00}, 0x0123, 0x05, 0x57, 0x45, 0x0123);
+}
+
+TEST_F(CPUTest, TestDCPIndirectXPointerWraps) {
+  // Pointer at ($FF + X) & $FF = $01.
+  verifyDCP({0xC3, 0xFF, 0x00}, 0x0234, 0x02, 0x57, 0x01, 0x0234);
+}
+
+TEST_F(CPUTest, TestDCPIndirectY) {
+  // Pointer at $40 holds $0120; + Y = $0125.
+  verifyDCP({0xD3, 0x40, 0x00}, 0x0125, 0x35, 0x05, 0x40, 0x0120);
+}
+
+TEST_F(CPUTest, TestDCPIndirectYCrossesPage) {
+  // Pointer at $40 holds $01FF; + Y = $0201.
+  verifyDCP({0xD3, 0x40, 0x00}, 0x0201, 0x35, 0x02, 0x40, 0x01FF);
 }
 
 TEST_F(CPUTest, TestLDA) {

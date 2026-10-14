@@ -15,41 +15,45 @@ bool all_equal(const T &t, const U &u, Others const &...args) {
   return (t == u) || all_equal(t, args...);
 }
 
-std::string formatInstruction(uint16_t programCounter, const std::vector<uint8_t>& hexDump, 
-                              const std::string& instruction, const std::string& operand,
-                              uint8_t A, uint8_t X, uint8_t Y, uint8_t P, uint8_t SP) {
-    std::stringstream ss;
+std::string formatInstruction(uint16_t programCounter,
+                              const std::vector<uint8_t> &hexDump,
+                              std::string_view instruction,
+                              const std::string &operand, uint8_t A, uint8_t X,
+                              uint8_t Y, uint8_t P, uint8_t SP) {
+  std::stringstream ss;
 
-    // 1. Format Program Counter (4 chars, right-aligned)
-    ss << std::setw(4) << std::setfill(' ') << std::hex << std::uppercase << programCounter << "  ";
+  // 1. Format Program Counter (4 chars, right-aligned)
+  ss << std::setw(4) << std::setfill(' ') << std::hex << std::uppercase
+     << programCounter << "  ";
 
-    // 2. Format Hex Dump (Up to 3 bytes, padded to 9 characters for alignment)
-    std::stringstream hexSS;
-    for (size_t i = 0; i < hexDump.size(); i++) {
-        hexSS << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(hexDump[i]);
-        if (i < hexDump.size() - 1) {
-            hexSS << " ";
-        }
+  // 2. Format Hex Dump (Up to 3 bytes, padded to 9 characters for alignment)
+  std::stringstream hexSS;
+  for (size_t i = 0; i < hexDump.size(); i++) {
+    hexSS << std::setw(2) << std::setfill('0') << std::hex
+          << static_cast<int>(hexDump[i]);
+    if (i < hexDump.size() - 1) {
+      hexSS << " ";
     }
-    ss << std::setw(10) << std::left << hexSS.str();
+  }
+  ss << std::setw(10) << std::left << hexSS.str();
 
-    // 3. Format Instruction (Mnemonic, Fixed Width = 5)
-    ss << std::setw(5) << std::left << instruction;
+  // 3. Format Instruction (Mnemonic, Fixed Width = 5)
+  ss << std::setw(5) << std::left << instruction;
 
-    // 4. Format Operand (e.g., "$C5F5", Fixed Width = 10)
-    ss << std::setw(10) << std::left << operand;
+  // 4. Format Operand (e.g., "$C5F5", Fixed Width = 10)
+  ss << std::setw(10) << std::left << operand;
 
-    // 5. Align Registers & Flags (Ensure this section starts at a fixed position)
-    ss << std::setw(20) << std::right << "A:"
-       << std::setw(2) << std::setfill('0') << static_cast<int>(A) << " "
-       << "X:" << std::setw(2) << static_cast<int>(X) << " "
-       << "Y:" << std::setw(2) << static_cast<int>(Y) << " "
-       << "P:" << std::setw(2) << static_cast<int>(P) << " "
-       << "SP:" << std::setw(2) << static_cast<int>(SP);
+  // 5. Align Registers & Flags (Ensure this section starts at a fixed position)
+  ss << std::setw(20) << std::right << "A:" << std::setw(2) << std::setfill('0')
+     << static_cast<int>(A) << " "
+     << "X:" << std::setw(2) << static_cast<int>(X) << " "
+     << "Y:" << std::setw(2) << static_cast<int>(Y) << " "
+     << "P:" << std::setw(2) << static_cast<int>(P) << " "
+     << "SP:" << std::setw(2) << static_cast<int>(SP);
 
-    std::string result = ss.str();
-    std::transform(result.begin(), result.end(), result.begin(), ::toupper);
-    return result;
+  std::string result = ss.str();
+  std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+  return result;
 }
 
 std::string traceCpuState(CPU *cpu) {
@@ -58,7 +62,7 @@ std::string traceCpuState(CPU *cpu) {
   uint8_t opcode = cpu->readFromMemory(cpu->PC);
   uint16_t programCounter = cpu->PC;
   CPU::instruction instruction = cpu->lookupTable[opcode];
-  std::string assemblyName = instruction.name;
+  std::string_view assemblyName = instruction.name;
   uint8_t sizeOfInstruction = instruction.bytes;
   std::vector<uint8_t> hexDump;
   hexDump.push_back(opcode);
@@ -213,35 +217,38 @@ std::string traceCpuState(CPU *cpu) {
   default:
     tempString = "";
   }
-  return formatInstruction(programCounter, hexDump, instruction.name, tempString, cpu->A, cpu->X, cpu->Y, cpu->P, cpu->SP);
-//  std::stringstream ss;
-//  for (size_t i = 0; i < hexDump.size(); i++) {
-//    ss << std::setw(2) << std::setfill('0') << std::hex
-//       << static_cast<int>(hexDump[i]);
-//    if (i != hexDump.size() - 1) {
-//      ss << " ";
-//    }
-//  }
-//  std::string hexString = ss.str();
-//  ss.str("");
-//  ss.clear();
-//  ss << std::setw(4) << std::setfill(' ') << std::right << std::hex << programCounter << "  " << std::setw(8)
-//     << hexString << " " << std::setw(4) << " " << instruction.name << " "
-//     << tempString;
-//  std::string asmString = ss.str();
-//  ss.str("");
-//  ss.clear();
-//  ss << std::right << asmString << " " << std::setw(23) << "A:" << std::setw(2)
-//     << std::setfill('0') << std::hex << static_cast<int>(cpu->A) << " "
-//     << "X:" << std::setw(2) << std::setfill('0') << std::hex
-//     << static_cast<int>(cpu->X) << " " << "Y:" << std::setw(2)
-//     << std::setfill('0') << std::hex << static_cast<int>(cpu->Y) << " "
-//     << "P:" << std::setw(2) << std::setfill('0') << std::hex
-//     << static_cast<int>(cpu->S) << " " << "SP:" << std::setw(2)
-//     << std::setfill('0') << std::hex << static_cast<int>(cpu->SP);
-//
-//  // Get the formatted string
-//  std::string result = ss.str();
-//  std::transform(result.begin(), result.end(), result.begin(), ::toupper);
-//  return result;
+  return formatInstruction(programCounter, hexDump, instruction.name,
+                           tempString, cpu->A, cpu->X, cpu->Y, cpu->P, cpu->SP);
+  //  std::stringstream ss;
+  //  for (size_t i = 0; i < hexDump.size(); i++) {
+  //    ss << std::setw(2) << std::setfill('0') << std::hex
+  //       << static_cast<int>(hexDump[i]);
+  //    if (i != hexDump.size() - 1) {
+  //      ss << " ";
+  //    }
+  //  }
+  //  std::string hexString = ss.str();
+  //  ss.str("");
+  //  ss.clear();
+  //  ss << std::setw(4) << std::setfill(' ') << std::right << std::hex <<
+  //  programCounter << "  " << std::setw(8)
+  //     << hexString << " " << std::setw(4) << " " << instruction.name << " "
+  //     << tempString;
+  //  std::string asmString = ss.str();
+  //  ss.str("");
+  //  ss.clear();
+  //  ss << std::right << asmString << " " << std::setw(23) << "A:" <<
+  //  std::setw(2)
+  //     << std::setfill('0') << std::hex << static_cast<int>(cpu->A) << " "
+  //     << "X:" << std::setw(2) << std::setfill('0') << std::hex
+  //     << static_cast<int>(cpu->X) << " " << "Y:" << std::setw(2)
+  //     << std::setfill('0') << std::hex << static_cast<int>(cpu->Y) << " "
+  //     << "P:" << std::setw(2) << std::setfill('0') << std::hex
+  //     << static_cast<int>(cpu->S) << " " << "SP:" << std::setw(2)
+  //     << std::setfill('0') << std::hex << static_cast<int>(cpu->SP);
+  //
+  //  // Get the formatted string
+  //  std::string result = ss.str();
+  //  std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+  //  return result;
 }
